@@ -1110,7 +1110,10 @@ function App() {
                   syncStatus === 'error' ? 'text-rose-500 animate-bounce' :
                   'text-slate-400'
                 }`}>
-                  雲端{syncStatus === 'syncing' ? '同步中' : syncStatus === 'success' ? '連線成功' : syncStatus === 'error' ? '連線失敗' : '連線'}
+                  {syncStatus === 'syncing' ? '雲端同步中' : 
+                   syncStatus === 'success' ? '雲端連線成功' : 
+                   syncStatus === 'error' ? '雲端連線失敗' : 
+                   '雲端連線'}
                 </span>
               ) : (
                 <span>本地單機模式</span>
