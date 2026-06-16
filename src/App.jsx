@@ -410,8 +410,10 @@ function App() {
   const [gasUrl, setGasUrl] = useState(() => {
     const saved = localStorage.getItem('careflow_gas_url');
     if (saved === null) {
-      const defaultUrl = 'https://script.google.com/macros/s/AKfycbzKklSVbjRHFG601Z0tpXZyJCFZED5JAJSpiuSRcu9PgO3skBPFC1O2VzyYcshNzJdG/exec';
-      localStorage.setItem('careflow_gas_url', defaultUrl);
+      const defaultUrl = import.meta.env.VITE_GAS_URL || '';
+      if (defaultUrl) {
+        localStorage.setItem('careflow_gas_url', defaultUrl);
+      }
       return defaultUrl;
     }
     return saved;
@@ -603,6 +605,20 @@ function App() {
       setTimeout(() => setSyncStatus('idle'), 3000);
     }
   };
+
+  // 檢查 URL 是否帶有 gas 參數，如有則自動儲存並清除 URL 參數
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const gasParam = params.get('gas');
+    if (gasParam) {
+      const trimmed = gasParam.trim();
+      localStorage.setItem('careflow_gas_url', trimmed);
+      setGasUrl(trimmed);
+      // 從網址列移除 ?gas=...
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []);
 
   // 當解鎖狀態、密碼或雲端網址變更時，自動觸發雲端同步
   useEffect(() => {
@@ -3255,6 +3271,16 @@ function App() {
         onClose={() => setShowSettingsModal(false)}
         fontScale={fontScale}
         setFontScale={setFontScale}
+        gasUrl={gasUrl}
+        onGasUrlChange={(newUrl) => {
+          const trimmed = newUrl.trim();
+          setGasUrl(trimmed);
+          if (trimmed) {
+            localStorage.setItem('careflow_gas_url', trimmed);
+          } else {
+            localStorage.removeItem('careflow_gas_url');
+          }
+        }}
       />
 
     </div>
@@ -3266,7 +3292,9 @@ function SettingsModal({
   show, 
   onClose, 
   fontScale,
-  setFontScale
+  setFontScale,
+  gasUrl,
+  onGasUrlChange
 }) {
   if (!show) return null;
 
@@ -3348,6 +3376,25 @@ function SettingsModal({
             <p className="text-[9px] text-monitor-dim leading-relaxed">
               調整字型大小後，系統會自動配合原版面進行微調，確保在縮放時不會產生異常折行或超出螢幕框架。
             </p>
+          </div>
+
+          {/* 雲端同步設定 */}
+          <div className="border-t border-monitor-border/60 pt-4 space-y-3">
+            <h4 className="font-bold text-slate-800 flex items-center gap-1.5 font-sans">
+              <span>☁️ 雲端同步 GAS 網址</span>
+            </h4>
+            <div className="space-y-1.5">
+              <input
+                type="text"
+                value={gasUrl || ''}
+                onChange={(e) => onGasUrlChange(e.target.value)}
+                placeholder="請輸入 https://script.google.com/macros/s/.../exec"
+                className="w-full py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-[10px] text-monitor-text focus:outline-none focus:border-slate-500 font-mono shadow-sm"
+              />
+              <p className="text-[9px] text-monitor-dim leading-relaxed">
+                這是您的 Google Apps Script Web App 同步網址。將此欄位留空則系統改為「本地儲存」模式。
+              </p>
+            </div>
           </div>
         </div>
       </div>
