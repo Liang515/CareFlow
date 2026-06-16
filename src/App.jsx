@@ -466,6 +466,7 @@ function App() {
   // 表單欄位狀態
   const [systolic, setSystolic] = useState(120);
   const [diastolic, setDiastolic] = useState(80);
+  const [meanArterialPressure, setMeanArterialPressure] = useState(93);
   const [heartRate, setHeartRate] = useState(80);
   const [oxygen, setOxygen] = useState(98);
   const [respRate, setRespRate] = useState(16);
@@ -474,6 +475,13 @@ function App() {
   const [medName, setMedName] = useState('一般止痛藥 (如普拿疼)');
   const [customMed, setCustomMed] = useState('');
   const [noteText, setNoteText] = useState('');
+
+  // 當收縮壓或舒張壓改變時，自動重新計算平均壓 (MAP)
+  useEffect(() => {
+    const s = Number(systolic) || 120;
+    const d = Number(diastolic) || 80;
+    setMeanArterialPressure(Math.round(d + (s - d) / 3));
+  }, [systolic, diastolic]);
 
   // 從雲端 GAS 拉取最新資料並在裝置解密的非同步函數 (支援離線快取優先)
   const triggerSync = async (pinKey) => {
@@ -808,7 +816,7 @@ function App() {
     e.preventDefault();
     const sbpVal = Number(systolic) || 120;
     const dbpVal = Number(diastolic) || 80;
-    const calculatedMap = Math.round(dbpVal + (sbpVal - dbpVal) / 3);
+    const mapVal = Number(meanArterialPressure) || Math.round(dbpVal + (sbpVal - dbpVal) / 3);
     const newLog = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
@@ -818,7 +826,7 @@ function App() {
       rr: respRate,
       sbp: sbpVal,
       dbp: dbpVal,
-      map: calculatedMap,
+      map: mapVal,
       notes: noteText.trim() || undefined
     };
     setLogs([newLog, ...logs]);
@@ -1724,15 +1732,15 @@ function App() {
               {/* 血壓輸入 */}
               <div className="space-y-2">
                 <div className="font-semibold text-monitor-red">無創血壓記錄 (NBP)</div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-2">
                   {/* 收縮壓 */}
                   <div className="space-y-1">
-                    <label className="text-[10px] text-monitor-dim block">收縮壓 Systolic (mmHg)</label>
+                    <label className="text-[10px] text-monitor-dim block truncate" title="收縮壓 Systolic">收縮壓 SBP (mmHg)</label>
                     <div className="flex items-center gap-1">
                       <button 
                         type="button" 
                         onClick={() => setSystolic(Math.max(60, (Number(systolic) || 120) - 1))}
-                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-8 h-8 flex items-center justify-center flex-shrink-0"
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-7 h-8 flex items-center justify-center flex-shrink-0"
                         title="-1 mmHg"
                       >
                         -1
@@ -1747,12 +1755,12 @@ function App() {
                         onBlur={() => {
                           if (!systolic || systolic < 1) setSystolic(120);
                         }}
-                        className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red min-w-0"
+                        className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red min-w-0 text-xs"
                       />
                       <button 
                         type="button" 
                         onClick={() => setSystolic(Math.min(260, (Number(systolic) || 120) + 1))}
-                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-8 h-8 flex items-center justify-center flex-shrink-0"
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-7 h-8 flex items-center justify-center flex-shrink-0"
                         title="+1 mmHg"
                       >
                         +1
@@ -1761,12 +1769,12 @@ function App() {
                   </div>
                   {/* 舒張壓 */}
                   <div className="space-y-1">
-                    <label className="text-[10px] text-monitor-dim block">舒張壓 Diastolic (mmHg)</label>
+                    <label className="text-[10px] text-monitor-dim block truncate" title="舒張壓 Diastolic">舒張壓 DBP (mmHg)</label>
                     <div className="flex items-center gap-1">
                       <button 
                         type="button" 
                         onClick={() => setDiastolic(Math.max(40, (Number(diastolic) || 80) - 1))}
-                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-8 h-8 flex items-center justify-center flex-shrink-0"
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-7 h-8 flex items-center justify-center flex-shrink-0"
                         title="-1 mmHg"
                       >
                         -1
@@ -1781,12 +1789,50 @@ function App() {
                         onBlur={() => {
                           if (!diastolic || diastolic < 1) setDiastolic(80);
                         }}
-                        className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red min-w-0"
+                        className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red min-w-0 text-xs"
                       />
                       <button 
                         type="button" 
                         onClick={() => setDiastolic(Math.min(160, (Number(diastolic) || 80) + 1))}
-                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-8 h-8 flex items-center justify-center flex-shrink-0"
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-7 h-8 flex items-center justify-center flex-shrink-0"
+                        title="+1 mmHg"
+                      >
+                        +1
+                      </button>
+                    </div>
+                  </div>
+                  {/* 平均壓 */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-monitor-dim block truncate" title="平均動脈壓 Mean Arterial Pressure">平均壓 MAP (mmHg)</label>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        type="button" 
+                        onClick={() => setMeanArterialPressure(Math.max(30, (Number(meanArterialPressure) || 93) - 1))}
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-7 h-8 flex items-center justify-center flex-shrink-0"
+                        title="-1 mmHg"
+                      >
+                        -1
+                      </button>
+                      <input 
+                        type="number" 
+                        value={meanArterialPressure} 
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMeanArterialPressure(val === '' ? '' : parseInt(val) || 0);
+                        }}
+                        onBlur={() => {
+                          if (!meanArterialPressure || meanArterialPressure < 1) {
+                            const s = Number(systolic) || 120;
+                            const d = Number(diastolic) || 80;
+                            setMeanArterialPressure(Math.round(d + (s - d) / 3));
+                          }
+                        }}
+                        className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red min-w-0 text-xs"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setMeanArterialPressure(Math.min(200, (Number(meanArterialPressure) || 93) + 1))}
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-7 h-8 flex items-center justify-center flex-shrink-0"
                         title="+1 mmHg"
                       >
                         +1
