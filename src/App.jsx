@@ -17,7 +17,8 @@ import {
   Settings,
   Edit2,
   Lock,
-  Unlock
+  Unlock,
+  RefreshCw
 } from 'lucide-react';
 
 // 原生位元運算加密與解密工具函數 (支援 UTF-8 中文字元，防止 localStorage 直接外洩個資)
@@ -1122,8 +1123,27 @@ function App() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
+          {/* 重新整理按鈕 */}
+          <button
+            type="button"
+            onClick={() => {
+              if (gasUrl) {
+                triggerSync(password);
+              } else {
+                window.location.reload();
+              }
+            }}
+            disabled={syncStatus === 'syncing'}
+            className={`p-1.5 rounded-lg border transition active:scale-95 ${
+              syncStatus === 'syncing' 
+                ? 'bg-amber-50 border-amber-200 text-amber-500' 
+                : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-500 hover:text-slate-700'
+            }`}
+            title="重新整理數據"
+          >
+            <RefreshCw size={15} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
+          </button>
 
-          
           {/* 密碼鎖定按鈕 */}
           <button
             type="button"
