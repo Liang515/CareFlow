@@ -1288,10 +1288,27 @@ function App() {
     const hoursForAvg = Math.max(1, elapsedHoursTotal);
     const avgHourlyUrine = (totalUrineVol / hoursForAvg).toFixed(1);
 
+    const movingAverages = points.map((p, i) => {
+      const start = Math.max(0, i - 2);
+      const subset = points.slice(start, i + 1);
+      const sum = subset.reduce((acc, curr) => acc + curr.val, 0);
+      const avg = Math.round(sum / subset.length);
+      const barHeight = (avg / maxVal) * (height - paddingY * 2 - 12);
+      const y = height - paddingY - 2 - barHeight;
+      return { x: p.x, y, avg };
+    });
+    const pathD = `M ${movingAverages.map(ma => `${ma.x} ${ma.y}`).join(' L ')}`;
+
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
-          <span className="font-bold text-monitor-cyan flex items-center gap-1">💧 尿量排泄趨勢 (Urine Output)</span>
+          <span className="font-bold text-monitor-cyan flex items-center gap-1.5 flex-wrap">
+            <span>💧 尿量排泄趨勢 (Urine Output)</span>
+            <span className="text-[9px] font-normal text-slate-400 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+              <span className="inline-block w-2.5 h-0 border-t-2 border-dashed border-cyan-500 mr-1 align-middle"></span>
+              3次移動平均
+            </span>
+          </span>
           <span className="text-[10px] text-monitor-dim">
             總量: <strong className="text-cyan-600 font-mono">{totalUrineVol}</strong> cc | 平均: <strong className="text-cyan-600 font-mono">{avgHourlyUrine}</strong> cc/hr
           </span>
@@ -1373,7 +1390,7 @@ function App() {
                         x: p.x,
                         y: p.y - 4,
                         time: timeStr,
-                        value: `尿量: ${p.val} cc (${getUrineColorText(p.color)})`
+                        value: `尿量: ${p.val} cc (${getUrineColorText(p.color)}) | 平均: ${movingAverages[i].avg} cc`
                       });
                     }}
                     onMouseLeave={() => setActiveTooltip(null)}
@@ -1391,7 +1408,7 @@ function App() {
                           x: p.x,
                           y: p.y - 4,
                           time: timeStr,
-                          value: `尿量: ${p.val} cc (${getUrineColorText(p.color)})`
+                          value: `尿量: ${p.val} cc (${getUrineColorText(p.color)}) | 平均: ${movingAverages[i].avg} cc`
                         });
                       }
                     }}
@@ -1400,10 +1417,36 @@ function App() {
               );
             })}
 
+            {/* 繪製 3次移動平均線 */}
+            {movingAverages.length >= 2 && (
+              <>
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke="#06b6d4"
+                  strokeWidth="2.2"
+                  strokeDasharray="3.5 2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {movingAverages.map((ma, i) => (
+                  <circle
+                    key={`ma-dot-${i}`}
+                    cx={ma.x}
+                    cy={ma.y}
+                    r="2.5"
+                    fill="#ffffff"
+                    stroke="#0891b2"
+                    strokeWidth="1.5"
+                  />
+                ))}
+              </>
+            )}
+
             {/* 繪製浮動提示框 */}
             {activeTooltip && activeTooltip.chartId === 'urine' && (
               (() => {
-                const tooltipWidth = 110;
+                const tooltipWidth = 160;
                 const tooltipHeight = 32;
                 let tooltipX = activeTooltip.x - tooltipWidth / 2;
                 if (tooltipX < 4) tooltipX = 4;
