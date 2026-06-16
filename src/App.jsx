@@ -161,8 +161,8 @@ function PinScreen({ onUnlock, isSetup }) {
             <img src="/logo.png" alt="家康記 Logo" className="w-full h-full object-cover" />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-extrabold tracking-widest uppercase text-emerald-400">家康記 密碼鎖</h1>
-            <p className="text-xs text-slate-400 mt-1">家庭生理數據隱私記錄系統</p>
+            <h1 className="text-xl font-extrabold tracking-widest uppercase text-emerald-400">CareFlow 密碼鎖</h1>
+            <p className="text-xs text-slate-400 mt-1">健康與生理數值紀錄系統</p>
           </div>
         </div>
 
@@ -1103,8 +1103,8 @@ function App() {
           </div>
           <div>
             <h1 className="text-sm font-extrabold tracking-widest text-monitor-text uppercase flex items-center gap-1.5" id="app-title">
-              <img src="/logo.png" alt="家康記" className="w-5 h-5 rounded-md object-cover" />
-              家康記 照護助理
+              <img src="/logo.png" alt="CareFlow" className="w-5 h-5 rounded-md object-cover" />
+              CareFlow 照護助理
             </h1>
             <p className="text-[9px] text-monitor-dim tracking-wider font-mono flex items-center gap-1.5">
               {gasUrl ? (
