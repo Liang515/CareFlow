@@ -636,7 +636,7 @@ function App() {
   const isRrAlert = (rr) => rr > 24;
   const isBpAlert = (sbp, dbp) => sbp > 140 || dbp > 90 || sbp < 90 || dbp < 55;
 
-  // 繪製趨勢圖的 SVG 元件
+  // 繪製趨勢圖的 SVG 元件 (支援時間間距比例繪圖與時間標籤)
   const renderSparkline = (key, strokeColor, label, unit) => {
     const data = logs
       .filter(l => l.type === 'vitals')
@@ -654,18 +654,24 @@ function App() {
     }
 
     const width = 320;
-    const height = 70;
+    const height = 90;
     const paddingX = 16;
-    const paddingY = 12;
+    const paddingY = 16;
     
     const vals = data.map(d => d.val);
     const min = Math.min(...vals) - 2;
     const max = Math.max(...vals) + 2;
     const valRange = max - min || 1;
 
+    const times = data.map(d => d.time.getTime());
+    const minTime = Math.min(...times);
+    const maxTime = Math.max(...times);
+    const timeRange = maxTime - minTime || 1;
+
     const points = data.map((d, index) => {
-      const x = paddingX + (index / (data.length - 1)) * (width - paddingX * 2);
-      const y = height - paddingY - ((d.val - min) / valRange) * (height - paddingY * 2);
+      const timeRatio = (d.time.getTime() - minTime) / timeRange;
+      const x = paddingX + timeRatio * (width - paddingX * 2);
+      const y = height - paddingY - 8 - ((d.val - min) / valRange) * (height - paddingY * 2 - 16);
       return { x, y, val: d.val, time: d.time };
     });
 
@@ -680,8 +686,35 @@ function App() {
           </span>
         </div>
         <div className="relative">
-          <svg className="w-full h-16" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
-            <line x1="0" y1={height/2} x2={width} y2={height/2} stroke="#f1f5f9" strokeDasharray="3 3" />
+          <svg className="w-full h-20" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+            <line x1="0" y1={height/2 - 4} x2={width} y2={height/2 - 4} stroke="#f1f5f9" strokeDasharray="3 3" />
+            
+            {/* 繪製時間軸垂直格線與時間標籤 (防重疊) */}
+            {(() => {
+              let lastLabelX = -999;
+              return points.map((p, i) => {
+                const showLabel = p.x - lastLabelX > 32;
+                if (showLabel) {
+                  lastLabelX = p.x;
+                }
+                return showLabel ? (
+                  <g key={`grid-${i}`}>
+                    <line x1={p.x} y1={paddingY - 6} x2={p.x} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
+                    <text
+                      x={p.x}
+                      y={height - 2}
+                      textAnchor="middle"
+                      fontSize="7.5"
+                      fill="#64748b"
+                      className="font-mono font-bold"
+                    >
+                      {p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </text>
+                  </g>
+                ) : null;
+              });
+            })()}
+
             <path
               d={pathD}
               fill="none"
@@ -695,40 +728,35 @@ function App() {
                 <circle
                   cx={p.x}
                   cy={p.y}
-                  r="3"
+                  r="3.5"
                   fill="#ffffff"
                   stroke={strokeColor}
-                  strokeWidth="2"
+                  strokeWidth="2.5"
                 />
-                {(i === points.length - 1 || i === 0) && (
-                  <text
-                    x={p.x}
-                    y={p.y - 6}
-                    textAnchor="middle"
-                    fontSize="8.5"
-                    fontWeight="bold"
-                    fill="#334155"
-                    className="font-mono"
-                  >
-                    {p.val}
-                  </text>
-                )}
+                <text
+                  x={p.x}
+                  y={p.y - 7}
+                  textAnchor="middle"
+                  fontSize="8.5"
+                  fontWeight="bold"
+                  fill={strokeColor}
+                  className="font-mono bg-white"
+                >
+                  {p.val}
+                </text>
               </g>
             ))}
           </svg>
-        </div>
-        <div className="flex justify-between text-[8px] text-monitor-dim font-mono">
-          <span>{points[0].time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-          <span>{points[points.length - 1].time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
         </div>
       </div>
     );
   };
 
+  // 繪製血壓趨勢圖的 SVG 元件 (支援時間間距比例與 SBP/DBP/MAP 提示)
   const renderBpSparkline = () => {
     const data = logs
       .filter(l => l.type === 'vitals')
-      .map(l => ({ sbp: l.sbp, dbp: l.dbp, time: new Date(l.timestamp) }))
+      .map(l => ({ sbp: l.sbp, dbp: l.dbp, map: l.map, time: new Date(l.timestamp) }))
       .filter(d => d.sbp !== null && d.dbp !== null)
       .reverse(); // 舊到新排序
 
@@ -742,9 +770,9 @@ function App() {
     }
 
     const width = 320;
-    const height = 75;
+    const height = 100;
     const paddingX = 16;
-    const paddingY = 12;
+    const paddingY = 16;
 
     const sbps = data.map(d => d.sbp);
     const dbps = data.map(d => d.dbp);
@@ -752,10 +780,16 @@ function App() {
     const max = Math.max(...sbps) + 5;
     const valRange = max - min || 1;
 
+    const times = data.map(d => d.time.getTime());
+    const minTime = Math.min(...times);
+    const maxTime = Math.max(...times);
+    const timeRange = maxTime - minTime || 1;
+
     const points = data.map((d, index) => {
-      const x = paddingX + (index / (data.length - 1)) * (width - paddingX * 2);
-      const ySbp = height - paddingY - ((d.sbp - min) / valRange) * (height - paddingY * 2);
-      const yDbp = height - paddingY - ((d.dbp - min) / valRange) * (height - paddingY * 2);
+      const timeRatio = (d.time.getTime() - minTime) / timeRange;
+      const x = paddingX + timeRatio * (width - paddingX * 2);
+      const ySbp = height - paddingY - 10 - ((d.sbp - min) / valRange) * (height - paddingY * 2 - 20);
+      const yDbp = height - paddingY - 10 - ((d.dbp - min) / valRange) * (height - paddingY * 2 - 20);
       return { x, ySbp, yDbp, sbp: d.sbp, dbp: d.dbp, time: d.time };
     });
 
@@ -771,8 +805,35 @@ function App() {
           </span>
         </div>
         <div className="relative">
-          <svg className="w-full h-16" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
-            <line x1="0" y1={height/2} x2={width} y2={height/2} stroke="#f1f5f9" strokeDasharray="3 3" />
+          <svg className="w-full h-22" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+            <line x1="0" y1={height/2 - 5} x2={width} y2={height/2 - 5} stroke="#f1f5f9" strokeDasharray="3 3" />
+            
+            {/* 時間軸垂直格線與時間標籤 */}
+            {(() => {
+              let lastLabelX = -999;
+              return points.map((p, i) => {
+                const showLabel = p.x - lastLabelX > 32;
+                if (showLabel) {
+                  lastLabelX = p.x;
+                }
+                return showLabel ? (
+                  <g key={`grid-bp-${i}`}>
+                    <line x1={p.x} y1={paddingY - 6} x2={p.x} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
+                    <text
+                      x={p.x}
+                      y={height - 2}
+                      textAnchor="middle"
+                      fontSize="7.5"
+                      fill="#64748b"
+                      className="font-mono font-bold"
+                    >
+                      {p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </text>
+                  </g>
+                ) : null;
+              });
+            })()}
+
             <path
               d={pathSbp}
               fill="none"
@@ -792,20 +853,135 @@ function App() {
             {points.map((p, i) => (
               <g key={i}>
                 <circle cx={p.x} cy={p.ySbp} r="3" fill="#ffffff" stroke="#ef4444" strokeWidth="1.5" />
-                {(i === points.length - 1 || i === 0) && (
-                  <text x={p.x} y={p.ySbp - 5} textAnchor="middle" fontSize="8" fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
-                )}
+                <text x={p.x} y={p.ySbp - 6} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
+                
                 <circle cx={p.x} cy={p.yDbp} r="3" fill="#ffffff" stroke="#475569" strokeWidth="1.5" />
-                {(i === points.length - 1 || i === 0) && (
-                  <text x={p.x} y={p.yDbp + 9} textAnchor="middle" fontSize="8" fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
-                )}
+                <text x={p.x} y={p.yDbp + 9} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
               </g>
             ))}
           </svg>
         </div>
-        <div className="flex justify-between text-[8px] text-monitor-dim font-mono">
-          <span>{points[0].time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-          <span>{points[points.length - 1].time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+      </div>
+    );
+  };
+
+  // 繪製尿量排泄紀錄的柱狀圖 SVG 元件 (支援時間間距比例與顏色對照)
+  const renderUrineChart = () => {
+    const data = logs
+      .filter(l => l.type === 'event' && l.eventType === 'urine')
+      .map(l => ({ val: Number(l.volumeCc) || 0, time: new Date(l.timestamp), color: l.color }))
+      .filter(d => d.val > 0)
+      .reverse(); // 舊到新排序
+
+    if (data.length < 1) {
+      return (
+        <div className="bg-monitor-card border border-monitor-border rounded-xl p-4 text-center shadow-sm">
+          <div className="text-xs font-bold text-monitor-cyan mb-1">尿量排泄紀錄 (Urine Output)</div>
+          <div className="text-[11px] text-monitor-dim py-4">目前尚無尿量登錄紀錄</div>
+        </div>
+      );
+    }
+
+    const width = 320;
+    const height = 95;
+    const paddingX = 16;
+    const paddingY = 16;
+
+    const vals = data.map(d => d.val);
+    const maxVal = Math.max(...vals, 100); // 至少 100 做比例
+    
+    const times = data.map(d => d.time.getTime());
+    const minTime = Math.min(...times);
+    const maxTime = Math.max(...times);
+    const timeRange = maxTime - minTime || 1;
+
+    const points = data.map((d, index) => {
+      const timeRatio = data.length === 1 ? 0.5 : (d.time.getTime() - minTime) / timeRange;
+      const x = paddingX + timeRatio * (width - paddingX * 2);
+      const barHeight = (d.val / maxVal) * (height - paddingY * 2 - 12);
+      const y = height - paddingY - 2 - barHeight;
+      return { x, y, val: d.val, time: d.time, barHeight, color: d.color };
+    });
+
+    // 尿色對應之填充顏色設定
+    const getColorFill = (color) => {
+      switch (color) {
+        case 'clear_yellow': return '#fed7aa'; // light amber-200
+        case 'dark_yellow': return '#f59e0b';  // amber-500
+        case 'tea_brown': return '#b45309';    // amber-700
+        case 'hematuria_red': return '#f87171'; // red-400 (血尿)
+        default: return '#06b6d4';              // cyan-500
+      }
+    };
+
+    return (
+      <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
+        <div className="flex justify-between items-center text-xs">
+          <span className="font-bold text-monitor-cyan flex items-center gap-1">💧 尿量排泄趨勢 (Urine Output)</span>
+          <span className="text-[10px] text-monitor-dim">
+            累計: <strong className="text-monitor-cyan">{vals.length}</strong> 次 | 單次最大: <strong className="text-cyan-600 font-mono">{Math.max(...vals)}</strong> cc
+          </span>
+        </div>
+        <div className="relative">
+          <svg className="w-full h-22" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+            <line x1="0" y1={height - paddingY - 2} x2={width} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="1" />
+            
+            {/* 時間軸垂直格線與時間標籤 */}
+            {(() => {
+              let lastLabelX = -999;
+              return points.map((p, i) => {
+                const showLabel = p.x - lastLabelX > 32;
+                if (showLabel) {
+                  lastLabelX = p.x;
+                }
+                return showLabel ? (
+                  <g key={`grid-urine-${i}`}>
+                    <line x1={p.x} y1={paddingY - 6} x2={p.x} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
+                    <text
+                      x={p.x}
+                      y={height - 2}
+                      textAnchor="middle"
+                      fontSize="7.5"
+                      fill="#64748b"
+                      className="font-mono font-bold"
+                    >
+                      {p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </text>
+                  </g>
+                ) : null;
+              });
+            })()}
+
+            {/* 繪製柱狀圖 */}
+            {points.map((p, i) => {
+              const barWidth = Math.max(8, Math.min(16, 120 / (data.length || 10)));
+              return (
+                <g key={`bar-${i}`}>
+                  <rect
+                    x={p.x - barWidth / 2}
+                    y={p.y - 4}
+                    width={barWidth}
+                    height={p.barHeight}
+                    fill={getColorFill(p.color)}
+                    stroke={p.color === 'hematuria_red' ? '#ef4444' : '#0891b2'}
+                    strokeWidth="0.5"
+                    rx="1.5"
+                  />
+                  <text
+                    x={p.x}
+                    y={p.y - 8}
+                    textAnchor="middle"
+                    fontSize="7.5"
+                    fontWeight="bold"
+                    fill="#334155"
+                    className="font-mono"
+                  >
+                    {p.val}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
         </div>
       </div>
     );
@@ -1379,6 +1555,8 @@ function App() {
             {renderSparkline('spo2', '#06b6d4', '血氧趨勢 (SpO₂)', '%')}
             {renderSparkline('rr', '#f59e0b', '呼吸趨勢 (Respiratory Rate)', 'rpm')}
             {renderBpSparkline()}
+            {renderSparkline('map', '#f43f5e', '平均壓趨勢 (MAP)', 'mmHg')}
+            {renderUrineChart()}
           </div>
         )}
 
