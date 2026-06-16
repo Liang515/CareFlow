@@ -541,6 +541,11 @@ function App() {
         setPatient(remotePatient);
       }
       if (remoteLogs.length > 0) {
+        // 過濾承已在本機刪除過的記錄，防止雲端同步讓刪除的資料復活
+        try {
+          const deletedIds = new Set(JSON.parse(localStorage.getItem('careflow_deleted_ids') || '[]'));
+          remoteLogs = remoteLogs.filter(l => !deletedIds.has(l.id.toString()));
+        } catch(e) {}
         // 由新到舊排序
         remoteLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setLogs(remoteLogs);
@@ -1145,7 +1150,15 @@ function App() {
 
   const deleteLog = (id) => {
     if (window.confirm('確定要刪除此筆交班紀錄嗎？')) {
-      setLogs(logs.filter(l => l.id !== id));
+      // 將刪除的 ID 存入 localStorage，防止雲端同步時復活
+      try {
+        const existing = JSON.parse(localStorage.getItem('careflow_deleted_ids') || '[]');
+        if (!existing.includes(id.toString())) {
+          existing.push(id.toString());
+          localStorage.setItem('careflow_deleted_ids', JSON.stringify(existing));
+        }
+      } catch(e) {}
+      setLogs(prev => prev.filter(l => l.id !== id));
       deleteLogFromCloud(id);
     }
   };
