@@ -157,8 +157,8 @@ function PinScreen({ onUnlock, isSetup }) {
       <div className="flex-1 flex flex-col justify-center items-center space-y-8 my-auto animate-pulse-slow">
         {/* Logo 和標題 */}
         <div className="flex flex-col items-center space-y-3">
-          <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/10 border-2 border-slate-700 overflow-hidden">
-            <img src="/logo.png" alt="家康記 Logo" className="w-full h-full object-cover" />
+          <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/5 border border-slate-200/50 overflow-hidden">
+            <img src="/logo.png" alt="CareFlow Logo" className="w-full h-full object-cover" />
           </div>
           <div className="text-center">
             <h1 className="text-xl font-extrabold tracking-widest uppercase text-emerald-400">CareFlow 密碼鎖</h1>
