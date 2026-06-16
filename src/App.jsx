@@ -630,6 +630,37 @@ function App() {
 
   const latest = getLatestVitals();
 
+  // 開啟生理數據輸入視窗並自動填入「前一次的輸入值」 (Carry over last recorded values)
+  const openVitalsModalWithLatest = () => {
+    const latestHr = latest.hr !== '--' ? latest.hr : 80;
+    const latestSpo2 = latest.spo2 !== '--' ? latest.spo2 : 98;
+    const latestRr = latest.rr !== '--' ? latest.rr : 16;
+    
+    let latestSbp = 120;
+    let latestDbp = 80;
+    let latestMap = 93;
+    
+    if (latest.bp && latest.bp !== '--/--') {
+      const parts = latest.bp.split('/');
+      latestSbp = parseInt(parts[0]) || 120;
+      latestDbp = parseInt(parts[1]) || 80;
+    }
+    
+    if (latest.map && latest.map !== '--') {
+      latestMap = parseInt(latest.map) || Math.round(latestDbp + (latestSbp - latestDbp) / 3);
+    } else {
+      latestMap = Math.round(latestDbp + (latestSbp - latestDbp) / 3);
+    }
+
+    setHeartRate(latestHr);
+    setOxygen(latestSpo2);
+    setRespRate(latestRr);
+    setSystolic(latestSbp);
+    setDiastolic(latestDbp);
+    setMeanArterialPressure(latestMap);
+    setShowVitalsModal(true);
+  };
+
   // 生理數據警報值判定
   const isHrAlert = (hr) => hr > 100 || hr < 50;
   const isSpo2Alert = (spo2) => spo2 < 95;
@@ -1304,7 +1335,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-monitor-bg flex flex-col font-sans max-w-md mx-auto relative border-x border-monitor-border">
+    <div className="h-[100dvh] bg-monitor-bg flex flex-col font-sans max-w-md mx-auto relative border-x border-monitor-border overflow-hidden">
       
       {/* 1. 清爽型床邊數據標題欄 */}
       <header className="bg-monitor-card border-b border-monitor-border px-4 py-3 sticky top-0 z-40 flex items-center justify-between shadow-sm">
@@ -1449,10 +1480,7 @@ function App() {
             {/* 心率卡片 */}
             <button 
               id="hr-card"
-              onClick={() => {
-                setHeartRate(latest.hr !== '--' ? latest.hr : 80);
-                setShowVitalsModal(true);
-              }}
+              onClick={openVitalsModalWithLatest}
               className={`monitor-card text-left focus:outline-none border transition-all shadow-sm hover:scale-[1.01] ${
                 isHrAlert(latest.hr)
                   ? 'bg-rose-50 border-rose-200 hover:border-rose-300'
@@ -1479,10 +1507,7 @@ function App() {
             {/* 血氧卡片 */}
             <button 
               id="spo2-card"
-              onClick={() => {
-                setOxygen(latest.spo2 !== '--' ? latest.spo2 : 98);
-                setShowVitalsModal(true);
-              }}
+              onClick={openVitalsModalWithLatest}
               className={`monitor-card text-left focus:outline-none border transition-all shadow-sm hover:scale-[1.01] ${
                 isSpo2Alert(latest.spo2)
                   ? 'bg-rose-50 border-rose-200 hover:border-rose-300'
@@ -1509,10 +1534,7 @@ function App() {
             {/* 呼吸卡片 */}
             <button 
               id="rr-card"
-              onClick={() => {
-                setRespRate(latest.rr !== '--' ? latest.rr : 16);
-                setShowVitalsModal(true);
-              }}
+              onClick={openVitalsModalWithLatest}
               className={`monitor-card text-left focus:outline-none border transition-all shadow-sm hover:scale-[1.01] ${
                 isRrAlert(latest.rr)
                   ? 'bg-rose-50 border-rose-200 hover:border-rose-300'
@@ -1541,17 +1563,7 @@ function App() {
             {/* 血壓卡片 */}
             <button 
               id="bp-card"
-              onClick={() => {
-                if (latest.bp && latest.bp !== '--/--') {
-                  const parts = latest.bp.split('/');
-                  setSystolic(parseInt(parts[0]));
-                  setDiastolic(parseInt(parts[1]));
-                } else {
-                  setSystolic(120);
-                  setDiastolic(80);
-                }
-                setShowVitalsModal(true);
-              }}
+              onClick={openVitalsModalWithLatest}
               className={`monitor-card text-left focus:outline-none border transition-all shadow-sm hover:scale-[1.01] ${
                 isBpAlert(latest.sbp, latest.dbp)
                   ? 'bg-rose-50 border-rose-200 hover:border-rose-300'
@@ -1767,27 +1779,30 @@ function App() {
 
       </main>
 
-      {/* 懸浮動作按鈕 (快速登錄生理數據) */}
-      <div className="absolute bottom-6 right-6 z-30">
+      {/* 底部固定操作欄 (Sticky Bottom Action Bar) */}
+      <footer className="bg-white border-t border-monitor-border p-3.5 flex gap-2.5 z-30 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <button
-          id="quick-log-float-btn"
-          onClick={() => {
-            setHeartRate(latest.hr !== '--' ? latest.hr : 80);
-            setOxygen(latest.spo2 !== '--' ? latest.spo2 : 98);
-            setRespRate(latest.rr !== '--' ? latest.rr : 16);
-            if (latest.bp && latest.bp !== '--/--') {
-              const parts = latest.bp.split('/');
-              setSystolic(parseInt(parts[0]));
-              setDiastolic(parseInt(parts[1]));
-            }
-            setShowVitalsModal(true);
-          }}
-          className="w-14 h-14 bg-monitor-green text-white font-bold rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform border-4 border-white focus:outline-none"
-          title="快速記錄生理數據"
+          type="button"
+          onClick={openVitalsModalWithLatest}
+          className="flex-1 py-3 bg-monitor-green text-white font-extrabold rounded-xl hover:bg-emerald-600 active:scale-95 transition shadow-sm flex items-center justify-center gap-1.5 text-xs tracking-wider"
         >
-          <Plus size={28} />
+          <Plus size={16} /> 登錄生理數據
         </button>
-      </div>
+        <button
+          type="button"
+          onClick={() => setShowUrineModal(true)}
+          className="py-3 px-4 bg-cyan-50 border border-cyan-100 text-monitor-cyan font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+        >
+          <Droplet size={14} className="fill-monitor-cyan/10" /> 尿量
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowMedModal(true)}
+          className="py-3 px-4 bg-purple-50 border border-purple-100 text-monitor-purple font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+        >
+          <Pill size={14} /> 用藥
+        </button>
+      </footer>
 
       {/* ================= 彈出式對話視窗 / 抽屜 ================= */}
 
