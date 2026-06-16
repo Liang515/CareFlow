@@ -157,11 +157,11 @@ function PinScreen({ onUnlock, isSetup }) {
       <div className="flex-1 flex flex-col justify-center items-center space-y-8 my-auto animate-pulse-slow">
         {/* Logo 和標題 */}
         <div className="flex flex-col items-center space-y-3">
-          <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 border-4 border-slate-800">
-            <Heart size={32} className="text-white fill-white/10" />
+          <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/10 border-2 border-slate-700 overflow-hidden">
+            <img src="/logo.png" alt="家康記 Logo" className="w-full h-full object-cover" />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-extrabold tracking-widest uppercase text-emerald-400">CareFlow 密碼鎖</h1>
+            <h1 className="text-xl font-extrabold tracking-widest uppercase text-emerald-400">家康記 密碼鎖</h1>
             <p className="text-xs text-slate-400 mt-1">家庭生理數據隱私記錄系統</p>
           </div>
         </div>
@@ -1102,7 +1102,10 @@ function App() {
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-monitor-green"></span>
           </div>
           <div>
-            <h1 className="text-sm font-extrabold tracking-widest text-monitor-text uppercase" id="app-title">CareFlow 照護助理</h1>
+            <h1 className="text-sm font-extrabold tracking-widest text-monitor-text uppercase flex items-center gap-1.5" id="app-title">
+              <img src="/logo.png" alt="家康記" className="w-5 h-5 rounded-md object-cover" />
+              家康記 照護助理
+            </h1>
             <p className="text-[9px] text-monitor-dim tracking-wider font-mono flex items-center gap-1.5">
               {gasUrl ? (
                 <span className={`inline-flex items-center gap-0.5 font-bold ${
