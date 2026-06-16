@@ -3374,37 +3374,26 @@ function SettingsModal({
             </p>
           </div>
 
-          {/* 雲端同步設定 */}
-          <div className="border-t border-monitor-border/60 pt-4 space-y-3">
-            <h4 className="font-bold text-slate-800 flex items-center gap-1.5 font-sans">
-              <span>☁️ 雲端同步 GAS 網址</span>
-              {import.meta.env.VITE_GAS_URL && (
-                <span className="text-[8px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 font-bold">
-                  系統預設
-                </span>
-              )}
-            </h4>
-            <div className="space-y-1.5">
-              <input
-                type="text"
-                value={gasUrl || ''}
-                onChange={(e) => onGasUrlChange(e.target.value)}
-                disabled={!!import.meta.env.VITE_GAS_URL}
-                placeholder="請輸入 https://script.google.com/macros/s/.../exec"
-                className={`w-full py-2 px-3 border rounded-lg text-[10px] focus:outline-none font-mono shadow-sm ${
-                  import.meta.env.VITE_GAS_URL 
-                    ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
-                    : 'bg-monitor-bg border-monitor-border text-monitor-text focus:border-slate-500'
-                }`}
-              />
-              <p className="text-[9px] text-monitor-dim leading-relaxed">
-                {import.meta.env.VITE_GAS_URL 
-                  ? '此網址由系統環境變數 (VITE_GAS_URL) 統一提供，其他裝置將會自動套用，免手動輸入。' 
-                  : '這是您的 Google Apps Script Web App 同步網址。將此欄位留空則系統改為「本地儲存」模式。'
-                }
-              </p>
+          {/* 雲端同步設定 (僅在未設定系統環境變數時顯示) */}
+          {!import.meta.env.VITE_GAS_URL && (
+            <div className="border-t border-monitor-border/60 pt-4 space-y-3">
+              <h4 className="font-bold text-slate-800 flex items-center gap-1.5 font-sans">
+                <span>☁️ 雲端同步 GAS 網址</span>
+              </h4>
+              <div className="space-y-1.5">
+                <input
+                  type="text"
+                  value={gasUrl || ''}
+                  onChange={(e) => onGasUrlChange(e.target.value)}
+                  placeholder="請輸入 https://script.google.com/macros/s/.../exec"
+                  className="w-full py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-[10px] text-monitor-text focus:outline-none focus:border-slate-500 font-mono shadow-sm"
+                />
+                <p className="text-[9px] text-monitor-dim leading-relaxed">
+                  這是您的 Google Apps Script Web App 同步網址。將此欄位留空則系統改為「本地儲存」模式。
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
