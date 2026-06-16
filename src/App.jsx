@@ -746,6 +746,18 @@ function App() {
 
     const pathD = `M ${points.map(p => `${p.x} ${p.y}`).join(' L ')}`;
 
+    const showLabelFlags = new Array(points.length).fill(false);
+    if (points.length > 0) {
+      showLabelFlags[points.length - 1] = true;
+      let lastLabeledX = points[points.length - 1].x;
+      for (let i = points.length - 2; i >= 0; i--) {
+        if (lastLabeledX - points[i].x > 30) {
+          showLabelFlags[i] = true;
+          lastLabeledX = points[i].x;
+        }
+      }
+    }
+
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
@@ -802,17 +814,19 @@ function App() {
                   stroke={strokeColor}
                   strokeWidth="2.5"
                 />
-                <text
-                  x={p.x}
-                  y={p.y - 7}
-                  textAnchor="middle"
-                  fontSize="8.5"
-                  fontWeight="bold"
-                  fill={strokeColor}
-                  className="font-mono bg-white"
-                >
-                  {p.val}
-                </text>
+                {showLabelFlags[i] && (
+                  <text
+                    x={p.x}
+                    y={p.y - 7}
+                    textAnchor="middle"
+                    fontSize="8.5"
+                    fontWeight="bold"
+                    fill={strokeColor}
+                    className="font-mono bg-white"
+                  >
+                    {p.val}
+                  </text>
+                )}
                 
                 {/* 增加觸控/懸停感應區 */}
                 <circle
@@ -980,6 +994,18 @@ function App() {
     const pathDbp = `M ${points.map(p => `${p.x} ${p.yDbp}`).join(' L ')}`;
     const pathMap = `M ${points.map(p => `${p.x} ${p.yMap}`).join(' L ')}`;
 
+    const showLabelFlags = new Array(points.length).fill(false);
+    if (points.length > 0) {
+      showLabelFlags[points.length - 1] = true;
+      let lastLabeledX = points[points.length - 1].x;
+      for (let i = points.length - 2; i >= 0; i--) {
+        if (lastLabeledX - points[i].x > 30) {
+          showLabelFlags[i] = true;
+          lastLabeledX = points[i].x;
+        }
+      }
+    }
+
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
@@ -1050,15 +1076,21 @@ function App() {
               <g key={i}>
                 {/* SBP */}
                 <circle cx={p.x} cy={p.ySbp} r="3" fill="#ffffff" stroke="#ef4444" strokeWidth="1.5" />
-                <text x={p.x} y={p.ySbp - 6} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
+                {showLabelFlags[i] && (
+                  <text x={p.x} y={p.ySbp - 6} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
+                )}
                 
                 {/* MAP */}
                 <circle cx={p.x} cy={p.yMap} r="2.5" fill="#ffffff" stroke="#8b5cf6" strokeWidth="1.2" />
-                <text x={p.x} y={p.yMap - 5} textAnchor="middle" fontSize="7" fontWeight="bold" fill="#8b5cf6" className="font-mono">{p.map}</text>
+                {showLabelFlags[i] && (
+                  <text x={p.x} y={p.yMap - 5} textAnchor="middle" fontSize="7" fontWeight="bold" fill="#8b5cf6" className="font-mono">{p.map}</text>
+                )}
 
                 {/* DBP */}
                 <circle cx={p.x} cy={p.yDbp} r="3" fill="#ffffff" stroke="#475569" strokeWidth="1.5" />
-                <text x={p.x} y={p.yDbp + 9} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
+                {showLabelFlags[i] && (
+                  <text x={p.x} y={p.yDbp + 9} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
+                )}
 
                 {/* 增加觸控/懸停感應區 */}
                 <circle
@@ -1237,6 +1269,18 @@ function App() {
       }
     };
 
+    const showLabelFlags = new Array(points.length).fill(false);
+    if (points.length > 0) {
+      showLabelFlags[points.length - 1] = true;
+      let lastLabeledX = points[points.length - 1].x;
+      for (let i = points.length - 2; i >= 0; i--) {
+        if (lastLabeledX - points[i].x > 30) {
+          showLabelFlags[i] = true;
+          lastLabeledX = points[i].x;
+        }
+      }
+    }
+
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
@@ -1290,17 +1334,19 @@ function App() {
                     strokeWidth="0.5"
                     rx="1.5"
                   />
-                  <text
-                    x={p.x}
-                    y={p.y - 8}
-                    textAnchor="middle"
-                    fontSize="7.5"
-                    fontWeight="bold"
-                    fill="#334155"
-                    className="font-mono"
-                  >
-                    {p.val}
-                  </text>
+                  {showLabelFlags[i] && (
+                    <text
+                      x={p.x}
+                      y={p.y - 8}
+                      textAnchor="middle"
+                      fontSize="7.5"
+                      fontWeight="bold"
+                      fill="#334155"
+                      className="font-mono"
+                    >
+                      {p.val}
+                    </text>
+                  )}
                   
                   {/* 增加觸控/懸停感應區 */}
                   <rect
@@ -1905,16 +1951,6 @@ function App() {
           >
             歷史趨勢
           </button>
-          <button
-            onClick={() => setActiveTab('report')}
-            className={`flex-1 text-center py-1.5 text-xs font-bold rounded-md transition-all ${
-              activeTab === 'report' 
-                ? 'bg-white text-monitor-text shadow-sm border border-slate-200/40' 
-                : 'text-monitor-dim hover:text-monitor-text'
-            }`}
-          >
-            交班報告
-          </button>
         </div>
 
         {/* 2. 生理數據區塊 (即時監控頁籤：即時數據網格) */}
@@ -2042,67 +2078,64 @@ function App() {
         )}
 
 
-        {/* 4. 交班報告產生器 */}
-        {activeTab === 'report' && (
-          <section className="bg-monitor-card border border-monitor-border rounded-xl p-4 space-y-3 shadow-sm transition-opacity duration-300 animate-fade-in">
-            <div className="flex justify-between items-center text-xs">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
-                <Clipboard size={13} className="text-monitor-cyan" /> 醫護交班報告
-              </h2>
+        {/* 4. 照護數據總結 (交班報告) */}
+        <section className="bg-monitor-card border border-monitor-border rounded-xl p-4 space-y-3 shadow-sm">
+          <div className="flex justify-between items-center text-xs">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
+              <Clipboard size={13} className="text-monitor-cyan" /> 照護數據總結 (交班報告)
+            </h2>
 
 
-              <div className="flex bg-monitor-bg border border-monitor-border rounded-md overflow-hidden p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setReportDuration(12)}
-                  className={`text-[9px] uppercase font-bold px-2 py-1 rounded ${reportDuration === 12 ? 'bg-monitor-cyan text-white' : 'text-monitor-dim'}`}
-                >
-                  12小時
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setReportDuration(24)}
-                  className={`text-[9px] uppercase font-bold px-2 py-1 rounded ${reportDuration === 24 ? 'bg-monitor-cyan text-white' : 'text-monitor-dim'}`}
-                >
-                  24小時
-                </button>
-              </div>
-            </div>
-
-            {/* 報告內容框 */}
-            <div className="relative">
-              <pre 
-                id="handover-raw"
-                className="w-full text-[11px] font-mono text-monitor-text bg-monitor-bg border border-monitor-border rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto no-scrollbar"
-              >
-                {generateHandoverMarkdown()}
-              </pre>
-              
-              {/* 複製按鈕 */}
+            <div className="flex bg-monitor-bg border border-monitor-border rounded-md overflow-hidden p-0.5">
               <button
-                id="copy-handover-btn"
-                onClick={handleCopyReport}
-                className={`absolute top-2 right-2 p-2 rounded-lg border transition shadow-sm ${
-                  copySuccess 
-                    ? 'bg-monitor-green border-monitor-green text-white' 
-                    : 'bg-white border-monitor-border hover:border-monitor-cyan text-monitor-cyan'
-                }`}
-                aria-label="複製報告"
+                type="button"
+                onClick={() => setReportDuration(12)}
+                className={`text-[9px] uppercase font-bold px-2 py-1 rounded ${reportDuration === 12 ? 'bg-monitor-cyan text-white' : 'text-monitor-dim'}`}
               >
-                {copySuccess ? <Check size={13} /> : <Copy size={13} />}
+                12小時
+              </button>
+              <button
+                type="button"
+                onClick={() => setReportDuration(24)}
+                className={`text-[9px] uppercase font-bold px-2 py-1 rounded ${reportDuration === 24 ? 'bg-monitor-cyan text-white' : 'text-monitor-dim'}`}
+              >
+                24小時
               </button>
             </div>
+          </div>
 
-            <div className="flex items-center gap-2 text-[10px] text-monitor-dim bg-slate-100 p-2.5 rounded-lg border border-slate-200">
-              <AlertCircle size={14} className="text-monitor-cyan flex-shrink-0" />
-              <p>報告可一鍵複製，以便透過 LINE/簡訊傳送給家人或在醫師巡房、換班時立即出示呈現。</p>
-            </div>
-          </section>
-        )}
+          {/* 報告內容框 */}
+          <div className="relative">
+            <pre 
+              id="handover-raw"
+              className="w-full text-[11px] font-mono text-monitor-text bg-monitor-bg border border-monitor-border rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto no-scrollbar"
+            >
+              {generateHandoverMarkdown()}
+            </pre>
+            
+            {/* 複製按鈕 */}
+            <button
+              id="copy-handover-btn"
+              onClick={handleCopyReport}
+              className={`absolute top-2 right-2 p-2 rounded-lg border transition shadow-sm ${
+                copySuccess 
+                  ? 'bg-monitor-green border-monitor-green text-white' 
+                  : 'bg-white border-monitor-border hover:border-monitor-cyan text-monitor-cyan'
+              }`}
+              aria-label="複製報告"
+            >
+              {copySuccess ? <Check size={13} /> : <Copy size={13} />}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-[10px] text-monitor-dim bg-slate-100 p-2.5 rounded-lg border border-slate-200">
+            <AlertCircle size={14} className="text-monitor-cyan flex-shrink-0" />
+            <p>報告可一鍵複製，以便透過 LINE/簡訊傳送給家人或在醫師巡房、換班時立即出示呈現。</p>
+          </div>
+        </section>
 
         {/* 5. telemetry 記錄串流歷史 */}
-        {activeTab === 'vitals' && (
-          <section className="space-y-2 transition-opacity duration-300 animate-fade-in">
+        <section className="space-y-2">
             <div className="flex justify-between items-center px-1">
               <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim">
                 臨床監控歷史紀錄流
@@ -2268,7 +2301,6 @@ function App() {
               })()}
             </div>
           </section>
-        )}
 
       </main>
 
