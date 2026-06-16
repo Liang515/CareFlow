@@ -1098,11 +1098,11 @@ function App() {
         <div className="flex items-center space-x-2.5">
           {/* LOGO 圖示放在最左上角 */}
           <img src="/logo.png" alt="CareFlow Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-slate-200" />
-          <div>
-            <h1 className="text-sm font-extrabold tracking-widest text-monitor-text uppercase" id="app-title">
+          <div className="flex flex-col justify-center space-y-0.5">
+            <h1 className="text-sm font-extrabold tracking-wide text-monitor-text uppercase leading-tight" id="app-title">
               CareFlow 照護助理
             </h1>
-            <p className="text-[9px] text-monitor-dim tracking-wider font-mono flex items-center gap-1.5">
+            <p className="text-[9px] text-monitor-dim tracking-wider font-mono flex items-center gap-1.5 leading-tight">
               {gasUrl ? (
                 <span className={`inline-flex items-center gap-0.5 font-bold ${
                   syncStatus === 'syncing' ? 'text-amber-500 animate-pulse' :
