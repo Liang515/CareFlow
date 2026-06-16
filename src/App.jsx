@@ -467,6 +467,23 @@ function App() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('vitals'); // 'vitals' or 'trends'
   
+  // 顯示字型大小設定狀態 (small | normal | medium | large)
+  const [fontSize, setFontSize] = useState(() => {
+    return localStorage.getItem('careflow_font_size') || 'normal';
+  });
+
+  useEffect(() => {
+    const scales = {
+      small: '0.9',
+      normal: '1.0',
+      medium: '1.08',
+      large: '1.16',
+    };
+    const scale = scales[fontSize] || '1.0';
+    document.documentElement.style.setProperty('--font-scale', scale);
+    localStorage.setItem('careflow_font_size', fontSize);
+  }, [fontSize]);
+
   // 即時時鐘 (每秒更新)
   const [currentTime, setCurrentTime] = useState(new Date());
   useEffect(() => {
@@ -487,6 +504,12 @@ function App() {
   const [customMed, setCustomMed] = useState('');
   const [noteText, setNoteText] = useState('');
   const [careRequestText, setCareRequestText] = useState('');
+
+  // 滾動容器 ref (用於點擊標題列回到頂部)
+  const mainRef = useRef(null);
+
+  // 歷史紀錄篩選類別 (all | vitals | urine | medication | care_request)
+  const [logFilter, setLogFilter] = useState('all');
 
   // 當收縮壓或舒張壓改變時，自動重新計算平均壓 (MAP)
   useEffect(() => {
@@ -1403,7 +1426,15 @@ function App() {
     <div className="h-[100dvh] bg-monitor-bg flex flex-col font-sans max-w-md mx-auto relative border-x border-monitor-border overflow-hidden">
       
       {/* 1. 清爽型床邊數據標題欄 */}
-      <header className="bg-monitor-card border-b border-monitor-border px-4 py-3 sticky top-0 z-40 flex items-center justify-between shadow-sm">
+      <header 
+        onClick={(e) => {
+          if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
+          if (mainRef.current) {
+            mainRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
+        className="bg-monitor-card border-b border-monitor-border px-4 py-3 sticky top-0 z-40 flex items-center justify-between shadow-sm cursor-pointer select-none"
+      >
         <div className="flex items-center space-x-2.5">
           {/* LOGO 圖示放在最左上角 */}
           <img src="/logo.png" alt="CareFlow Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-slate-200" />
@@ -1497,7 +1528,7 @@ function App() {
       )}
 
       {/* 主要操作區域 */}
-      <main className="flex-1 p-4 space-y-4 pb-28 overflow-y-auto no-scrollbar">
+      <main ref={mainRef} className="flex-1 p-4 space-y-4 pb-28 overflow-y-auto no-scrollbar">
         
         {/* 受測者卡片 */}
         <div className="bg-monitor-card border border-monitor-border rounded-xl p-3 flex justify-between items-center text-xs shadow-sm gap-2">
@@ -1782,91 +1813,140 @@ function App() {
 
         {/* 5. telemetry 記錄串流歷史 */}
         <section className="space-y-2">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim px-1">
-            臨床監控歷史紀錄流 (最新優先)
-          </h2>
+          <div className="flex justify-between items-center px-1">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim">
+              臨床監控歷史紀錄流 (最新優先)
+            </h2>
+          </div>
+
+          {/* 分類篩選按鈕列 */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 px-1">
+            {[
+              { label: '全部', value: 'all', count: logs.length },
+              { label: '生理數據', value: 'vitals', count: logs.filter(l => l.type === 'vitals').length },
+              { label: '排泄記錄', value: 'urine', count: logs.filter(l => l.type === 'event' && l.eventType === 'urine').length },
+              { label: '給藥處置', value: 'medication', count: logs.filter(l => l.type === 'event' && l.eventType === 'medication').length },
+              { label: '照護需求', value: 'care_request', count: logs.filter(l => l.type === 'event' && l.eventType === 'care_request').length }
+            ].map(tab => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setLogFilter(tab.value)}
+                className={`py-1 px-2.5 rounded-full border text-[9px] font-bold transition flex items-center gap-1 flex-shrink-0 ${
+                  logFilter === tab.value
+                    ? 'bg-slate-700 border-slate-700 text-white shadow-sm font-bold'
+                    : 'bg-white border-monitor-border text-monitor-dim hover:text-monitor-text hover:bg-slate-50'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className={`text-[8px] px-1 rounded-full ${
+                  logFilter === tab.value ? 'bg-slate-600 text-white font-normal' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
           <div className="space-y-2">
-            {logs.map((log) => {
-              const date = new Date(log.timestamp);
-              const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-              const dateStr = date.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
-              
-              return (
-                <div 
-                  key={log.id} 
-                  className="bg-monitor-card border border-monitor-border rounded-lg px-3 py-2.5 flex items-start justify-between gap-3 text-xs shadow-sm"
-                >
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-semibold text-monitor-dim">
-                        {dateStr} {timeStr}
-                      </span>
-                      {log.type === 'vitals' ? (
-                        <span className="bg-emerald-50 border border-emerald-100 text-monitor-green px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
-                          生理數據
+            {(() => {
+              const filtered = logs.filter(log => {
+                if (logFilter === 'all') return true;
+                if (logFilter === 'vitals') return log.type === 'vitals';
+                if (logFilter === 'urine') return log.type === 'event' && log.eventType === 'urine';
+                if (logFilter === 'medication') return log.type === 'event' && log.eventType === 'medication';
+                if (logFilter === 'care_request') return log.type === 'event' && log.eventType === 'care_request';
+                return true;
+              });
+              if (filtered.length === 0) {
+                return (
+                  <div className="text-center py-8 bg-monitor-card border border-monitor-border rounded-lg text-xs text-monitor-dim">
+                    目前無此分類的紀錄
+                  </div>
+                );
+              }
+              return filtered.map((log) => {
+                const date = new Date(log.timestamp);
+                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                const dateStr = date.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
+                
+                return (
+                  <div 
+                    key={log.id} 
+                    className="bg-monitor-card border border-monitor-border rounded-lg px-3 py-2.5 flex items-start justify-between gap-3 text-xs shadow-sm"
+                  >
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono font-semibold text-monitor-dim">
+                          {dateStr} {timeStr}
                         </span>
-                      ) : log.eventType === 'care_request' ? (
-                        <span className="bg-orange-50 border border-orange-100 text-orange-600 px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
-                          照護需求
-                        </span>
-                      ) : (
-                        <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
-                          {log.eventType === 'urine' ? '排泄記錄' : '給藥處置'}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {log.type === 'vitals' ? (
-                      <div className="grid grid-cols-4 gap-1 pt-1 font-mono text-[11px] text-monitor-text">
-                        <div><span className="text-monitor-dim">心率:</span> <strong className={isHrAlert(log.hr) ? 'text-monitor-red' : 'text-monitor-green'}>{log.hr}</strong></div>
-                        <div><span className="text-monitor-dim">血氧:</span> <strong className={isSpo2Alert(log.spo2) ? 'text-monitor-red' : 'text-monitor-cyan'}>{log.spo2}%</strong></div>
-                        <div><span className="text-monitor-dim">呼吸:</span> <strong className={isRrAlert(log.rr) ? 'text-monitor-red' : 'text-monitor-yellow'}>{log.rr}</strong></div>
-                        <div><span className="text-monitor-dim">血壓:</span> <strong className={isBpAlert(log.sbp, log.dbp) ? 'text-monitor-red' : 'text-monitor-text'}>{log.sbp}/{log.dbp}</strong></div>
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-monitor-text pt-0.5">
-                        {log.eventType === 'urine' ? (
-                          <div className="flex items-center gap-2">
-                            <span>排出尿量: <strong className="text-monitor-cyan">{log.volumeCc} cc</strong></span>
-                            <span className="flex items-center gap-1.5">
-                              尿色: 
-                              <span className={`w-2.5 h-2.5 rounded-full border border-slate-300 ${
-                                log.color === 'bright_red' ? 'bg-[#ef4444]' : log.color === 'tea' ? 'bg-[#8d6e63]' : 'bg-[#fef08a]'
-                              }`} />
-                              <strong className="text-monitor-text font-normal">
-                                {log.color === 'bright_red' ? '鮮紅肉眼血尿' : log.color === 'tea' ? '深茶色' : '清澈淡黃'}
-                              </strong>
-                            </span>
-                          </div>
+                        {log.type === 'vitals' ? (
+                          <span className="bg-emerald-50 border border-emerald-100 text-monitor-green px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                            生理數據
+                          </span>
                         ) : log.eventType === 'care_request' ? (
-                          <div>
-                            照護需求: <strong className="text-orange-600">{log.requestText}</strong>
-                          </div>
+                          <span className="bg-orange-50 border border-orange-100 text-orange-600 px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                            照護需求
+                          </span>
                         ) : (
-                          <div>
-                            給藥: <strong className="text-monitor-purple">{log.medicationName}</strong>
-                          </div>
+                          <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                            {log.eventType === 'urine' ? '排泄記錄' : '給藥處置'}
+                          </span>
                         )}
                       </div>
-                    )}
-                    
-                    {log.notes && (
-                      <p className="text-[10px] text-monitor-dim italic border-l-2 border-slate-200 pl-2 mt-1">
-                        「{log.notes}」
-                      </p>
-                    )}
-                  </div>
+                      
+                      {log.type === 'vitals' ? (
+                        <div className="grid grid-cols-4 gap-1 pt-1 font-mono text-[11px] text-monitor-text">
+                          <div><span className="text-monitor-dim">心率:</span> <strong className={isHrAlert(log.hr) ? 'text-monitor-red' : 'text-monitor-green'}>{log.hr}</strong></div>
+                          <div><span className="text-monitor-dim">血氧:</span> <strong className={isSpo2Alert(log.spo2) ? 'text-monitor-red' : 'text-monitor-cyan'}>{log.spo2}%</strong></div>
+                          <div><span className="text-monitor-dim">呼吸:</span> <strong className={isRrAlert(log.rr) ? 'text-monitor-red' : 'text-monitor-yellow'}>{log.rr}</strong></div>
+                          <div><span className="text-monitor-dim">血壓:</span> <strong className={isBpAlert(log.sbp, log.dbp) ? 'text-monitor-red' : 'text-monitor-text'}>{log.sbp}/{log.dbp}</strong></div>
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-monitor-text pt-0.5">
+                          {log.eventType === 'urine' ? (
+                            <div className="flex items-center gap-2">
+                              <span>排出尿量: <strong className="text-monitor-cyan">{log.volumeCc} cc</strong></span>
+                              <span className="flex items-center gap-1.5">
+                                尿色: 
+                                <span className={`w-2.5 h-2.5 rounded-full border border-slate-300 ${
+                                  log.color === 'bright_red' ? 'bg-[#ef4444]' : log.color === 'tea' ? 'bg-[#8d6e63]' : 'bg-[#fef08a]'
+                                }`} />
+                                <strong className="text-monitor-text font-normal">
+                                  {log.color === 'bright_red' ? '鮮紅肉眼血尿' : log.color === 'tea' ? '深茶色' : '清澈淡黃'}
+                                </strong>
+                              </span>
+                            </div>
+                          ) : log.eventType === 'care_request' ? (
+                            <div>
+                              照護需求: <strong className="text-orange-600">{log.requestText}</strong>
+                            </div>
+                          ) : (
+                            <div>
+                              給藥: <strong className="text-monitor-purple">{log.medicationName}</strong>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {log.notes && (
+                        <p className="text-[10px] text-monitor-dim italic border-l-2 border-slate-200 pl-2 mt-1">
+                          「{log.notes}」
+                        </p>
+                      )}
+                    </div>
 
-                  <button
-                    onClick={() => deleteLog(log.id)}
-                    className="text-monitor-dim hover:text-monitor-red p-1 rounded transition"
-                    title="刪除此筆紀錄"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              );
-            })}
+                    <button
+                      onClick={() => deleteLog(log.id)}
+                      className="text-monitor-dim hover:text-monitor-red p-1 rounded transition"
+                      title="刪除此筆紀錄"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </section>
 
