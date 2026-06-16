@@ -752,30 +752,36 @@ function App() {
     );
   };
 
-  // 繪製血壓趨勢圖的 SVG 元件 (支援時間間距比例與 SBP/DBP/MAP 提示)
+  // 繪製血壓與平均壓合併趨勢圖的 SVG 元件 (支援時間間距比例與 SBP/MAP/DBP 三合一折線)
   const renderBpSparkline = () => {
     const data = logs
       .filter(l => l.type === 'vitals')
-      .map(l => ({ sbp: l.sbp, dbp: l.dbp, map: l.map, time: new Date(l.timestamp) }))
-      .filter(d => d.sbp !== null && d.dbp !== null)
+      .map(l => {
+        const s = Number(l.sbp) || 0;
+        const d = Number(l.dbp) || 0;
+        const m = Number(l.map) || Math.round(d + (s - d) / 3);
+        return { sbp: s, dbp: d, map: m, time: new Date(l.timestamp) };
+      })
+      .filter(d => d.sbp > 0 && d.dbp > 0)
       .reverse(); // 舊到新排序
 
     if (data.length < 2) {
       return (
         <div className="bg-monitor-card border border-monitor-border rounded-xl p-4 text-center shadow-sm">
-          <div className="text-xs font-bold text-monitor-dim mb-1">血壓 (BP)</div>
+          <div className="text-xs font-bold text-monitor-dim mb-1">血壓與平均壓 (NBP & MAP)</div>
           <div className="text-[11px] text-monitor-dim py-4">數據量不足以繪製趨勢圖 (至少需2筆記錄)</div>
         </div>
       );
     }
 
     const width = 320;
-    const height = 100;
+    const height = 105;
     const paddingX = 16;
     const paddingY = 16;
 
     const sbps = data.map(d => d.sbp);
     const dbps = data.map(d => d.dbp);
+    const maps = data.map(d => d.map);
     const min = Math.min(...dbps) - 5;
     const max = Math.max(...sbps) + 5;
     const valRange = max - min || 1;
@@ -790,22 +796,24 @@ function App() {
       const x = paddingX + timeRatio * (width - paddingX * 2);
       const ySbp = height - paddingY - 10 - ((d.sbp - min) / valRange) * (height - paddingY * 2 - 20);
       const yDbp = height - paddingY - 10 - ((d.dbp - min) / valRange) * (height - paddingY * 2 - 20);
-      return { x, ySbp, yDbp, sbp: d.sbp, dbp: d.dbp, time: d.time };
+      const yMap = height - paddingY - 10 - ((d.map - min) / valRange) * (height - paddingY * 2 - 20);
+      return { x, ySbp, yDbp, yMap, sbp: d.sbp, dbp: d.dbp, map: d.map, time: d.time };
     });
 
     const pathSbp = `M ${points.map(p => `${p.x} ${p.ySbp}`).join(' L ')}`;
     const pathDbp = `M ${points.map(p => `${p.x} ${p.yDbp}`).join(' L ')}`;
+    const pathMap = `M ${points.map(p => `${p.x} ${p.yMap}`).join(' L ')}`;
 
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
-          <span className="font-bold text-monitor-text">血壓趨勢 (收縮壓/舒張壓)</span>
+          <span className="font-bold text-monitor-text">血壓與平均壓趨勢 (收縮壓/平均壓/舒張壓)</span>
           <span className="text-[10px] text-monitor-dim">
-            最新: <strong className="text-monitor-red">{sbps[sbps.length - 1]}</strong>/<strong className="text-slate-700">{dbps[dbps.length - 1]}</strong> mmHg
+            最新: <strong className="text-monitor-red">{sbps[sbps.length - 1]}</strong>/<strong className="text-monitor-purple">{maps[maps.length - 1]}</strong>/<strong className="text-slate-700">{dbps[dbps.length - 1]}</strong> mmHg
           </span>
         </div>
         <div className="relative">
-          <svg className="w-full h-22" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+          <svg className="w-full h-24" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 5} x2={width} y2={height/2 - 5} stroke="#f1f5f9" strokeDasharray="3 3" />
             
             {/* 時間軸垂直格線與時間標籤 */}
@@ -834,6 +842,7 @@ function App() {
               });
             })()}
 
+            {/* 收縮壓線 (紅) */}
             <path
               d={pathSbp}
               fill="none"
@@ -842,6 +851,17 @@ function App() {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
+            {/* 平均壓線 (紫虛線) */}
+            <path
+              d={pathMap}
+              fill="none"
+              stroke="#8b5cf6"
+              strokeWidth="1.5"
+              strokeDasharray="3 2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* 舒張壓線 (灰) */}
             <path
               d={pathDbp}
               fill="none"
@@ -852,9 +872,15 @@ function App() {
             />
             {points.map((p, i) => (
               <g key={i}>
+                {/* SBP */}
                 <circle cx={p.x} cy={p.ySbp} r="3" fill="#ffffff" stroke="#ef4444" strokeWidth="1.5" />
                 <text x={p.x} y={p.ySbp - 6} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
                 
+                {/* MAP */}
+                <circle cx={p.x} cy={p.yMap} r="2.5" fill="#ffffff" stroke="#8b5cf6" strokeWidth="1.2" />
+                <text x={p.x} y={p.yMap - 5} textAnchor="middle" fontSize="7" fontWeight="bold" fill="#8b5cf6" className="font-mono">{p.map}</text>
+
+                {/* DBP */}
                 <circle cx={p.x} cy={p.yDbp} r="3" fill="#ffffff" stroke="#475569" strokeWidth="1.5" />
                 <text x={p.x} y={p.yDbp + 9} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
               </g>
