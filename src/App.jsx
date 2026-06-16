@@ -1593,7 +1593,6 @@ function App() {
             {renderSparkline('spo2', '#06b6d4', '血氧趨勢 (SpO₂)', '%')}
             {renderSparkline('rr', '#f59e0b', '呼吸趨勢 (Respiratory Rate)', 'rpm')}
             {renderBpSparkline()}
-            {renderSparkline('map', '#f43f5e', '平均壓趨勢 (MAP)', 'mmHg')}
             {renderUrineChart()}
           </div>
         )}
