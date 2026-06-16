@@ -476,8 +476,8 @@ function App() {
     const scales = {
       small: '0.9',
       normal: '1.0',
-      medium: '1.08',
-      large: '1.16',
+      medium: '1.12',
+      large: '1.24',
     };
     const scale = scales[fontSize] || '1.0';
     document.documentElement.style.setProperty('--font-scale', scale);
@@ -1439,30 +1439,33 @@ function App() {
           {/* LOGO 圖示放在最左上角 */}
           <img src="/logo.png" alt="CareFlow Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-slate-200" />
           <div className="flex flex-col justify-center space-y-0.5">
-            <h1 className="text-sm font-extrabold tracking-wide text-monitor-text uppercase leading-tight" id="app-title">
-              CareFlow 照護助理
-            </h1>
-            <p className="text-[9px] tracking-wider font-mono flex items-center gap-1.5 leading-tight">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-xs font-extrabold tracking-wide text-monitor-text uppercase leading-none" id="app-title">
+                CareFlow
+              </h1>
               {gasUrl ? (
                 syncStatus === 'idle' ? (
-                  <span className="inline-flex items-center gap-1 text-slate-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                    <span className="font-bold">雲端</span>
+                  <span className="inline-flex items-center gap-0.5 text-slate-400 text-[8px] font-bold bg-slate-100 px-1 py-0.2 rounded leading-none">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                    <span>雲端</span>
                   </span>
                 ) : (
-                  <span className={`inline-flex items-center gap-0.5 font-bold ${
-                    syncStatus === 'syncing' ? 'text-amber-500 animate-pulse' :
-                    syncStatus === 'success' ? 'text-emerald-500' :
-                    'text-rose-500 animate-bounce'
+                  <span className={`inline-flex items-center gap-0.5 text-[8px] font-bold px-1 py-0.2 rounded leading-none ${
+                    syncStatus === 'syncing' ? 'bg-amber-50 text-amber-600 animate-pulse' :
+                    syncStatus === 'success' ? 'bg-emerald-50 text-emerald-600' :
+                    'bg-rose-50 text-rose-600'
                   }`}>
-                    {syncStatus === 'syncing' ? '同步中...' : 
-                     syncStatus === 'success' ? '同步成功 ✓' : 
-                     '連線失敗 ✗'}
+                    {syncStatus === 'syncing' ? '同步中' : 
+                     syncStatus === 'success' ? '同步成功' : 
+                     '連線失敗'}
                   </span>
                 )
               ) : (
-                <span className="text-slate-400">本地單機</span>
+                <span className="text-slate-400 text-[8px] font-bold bg-slate-100 px-1 py-0.2 rounded leading-none">本地</span>
               )}
+            </div>
+            <p className="text-[10px] text-monitor-dim leading-none font-medium">
+              照護助理
             </p>
           </div>
         </div>
@@ -2609,8 +2612,8 @@ function SettingsModal({
               {[
                 { label: '偏小 (90%)', value: 'small' },
                 { label: '適中 (100%)', value: 'normal' },
-                { label: '中等 (108%)', value: 'medium' },
-                { label: '偏大 (116%)', value: 'large' }
+                { label: '中等 (112%)', value: 'medium' },
+                { label: '偏大 (124%)', value: 'large' }
               ].map((opt) => (
                 <button
                   key={opt.value}
