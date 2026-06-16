@@ -496,7 +496,8 @@ function App() {
       // 2. 同步拉取生理與臨床紀錄
       const lRes = await getFromGas(url, 'getLogs');
       let remoteLogs = [];
-      if (Array.isArray(lRes)) {
+      let decryptFailed = false;
+      if (Array.isArray(lRes) && lRes.length > 0) {
         remoteLogs = lRes.map(item => {
           const dec = decrypt(item.data, pinKey);
           if (dec) {
@@ -505,8 +506,13 @@ function App() {
               return { id: item.id.toString(), timestamp: item.timestamp, type: item.type, ...parsed };
             } catch(e){}
           }
+          decryptFailed = true;
           return null;
         }).filter(Boolean);
+      }
+      
+      if (Array.isArray(lRes) && lRes.length > 0 && remoteLogs.length === 0 && decryptFailed) {
+        alert("⚠️ 提示：偵測到雲端已有照護紀錄，但使用當前輸入的密碼解密失敗。\n\n請確認您的 4 位數密碼是否與其他家人設定的一致！若不一致將無法讀取歷史數據。");
       }
       
       // 3. 更新狀態並寫入本機快取
@@ -517,6 +523,8 @@ function App() {
         // 由新到舊排序
         remoteLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setLogs(remoteLogs);
+        setIsDemo(false);
+        localStorage.setItem('careflow_initialized', 'true');
       }
       
       setSyncStatus('success');
@@ -527,6 +535,13 @@ function App() {
       setTimeout(() => setSyncStatus('idle'), 3000);
     }
   };
+
+  // 當解鎖狀態、密碼或雲端網址變更時，自動觸發雲端同步
+  useEffect(() => {
+    if (!isLocked && password && gasUrl) {
+      triggerSync(password);
+    }
+  }, [isLocked, password, gasUrl]);
 
   // 本地儲存同步 - 生理紀錄
   useEffect(() => {
