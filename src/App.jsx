@@ -467,22 +467,16 @@ function App() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('vitals'); // 'vitals' or 'trends'
   
-  // 顯示字型大小設定狀態 (small | normal | medium | large)
-  const [fontSize, setFontSize] = useState(() => {
-    return localStorage.getItem('careflow_font_size') || 'normal';
+  // 顯示字型大小設定狀態 (數值型比例 0.85 - 1.45)
+  const [fontScale, setFontScale] = useState(() => {
+    const saved = localStorage.getItem('careflow_font_scale');
+    return saved ? parseFloat(saved) : 1.0;
   });
 
   useEffect(() => {
-    const scales = {
-      small: '0.9',
-      normal: '1.0',
-      medium: '1.12',
-      large: '1.24',
-    };
-    const scale = scales[fontSize] || '1.0';
-    document.documentElement.style.setProperty('--font-scale', scale);
-    localStorage.setItem('careflow_font_size', fontSize);
-  }, [fontSize]);
+    document.documentElement.style.setProperty('--font-scale', fontScale.toString());
+    localStorage.setItem('careflow_font_scale', fontScale.toString());
+  }, [fontScale]);
 
   // 即時時鐘 (每秒更新)
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -490,6 +484,9 @@ function App() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // 提示框狀態 (用於圖表 hover/click 顯示)
+  const [activeTooltip, setActiveTooltip] = useState(null); // { chartId, index, x, y, time, value }
 
   // 表單欄位狀態
   const [systolic, setSystolic] = useState(120);
@@ -815,8 +812,115 @@ function App() {
                 >
                   {p.val}
                 </text>
+                
+                {/* 增加觸控/懸停感應區 */}
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r="12"
+                  fill="transparent"
+                  className="cursor-pointer"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                  onMouseEnter={() => {
+                    const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                    p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                    setActiveTooltip({
+                      chartId: key,
+                      index: i,
+                      x: p.x,
+                      y: p.y,
+                      time: timeStr,
+                      value: `${label.split(' ')[0]}: ${p.val} ${unit}`
+                    });
+                  }}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const isSame = activeTooltip && activeTooltip.chartId === key && activeTooltip.index === i;
+                    if (isSame) {
+                      setActiveTooltip(null);
+                    } else {
+                      const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                      p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                      setActiveTooltip({
+                        chartId: key,
+                        index: i,
+                        x: p.x,
+                        y: p.y,
+                        time: timeStr,
+                        value: `${label.split(' ')[0]}: ${p.val} ${unit}`
+                      });
+                    }
+                  }}
+                />
               </g>
             ))}
+
+            {/* 繪製浮動提示框 */}
+            {activeTooltip && activeTooltip.chartId === key && (
+              (() => {
+                const tooltipWidth = 95;
+                const tooltipHeight = 32;
+                let tooltipX = activeTooltip.x - tooltipWidth / 2;
+                if (tooltipX < 4) tooltipX = 4;
+                if (tooltipX + tooltipWidth > width - 4) tooltipX = width - tooltipWidth - 4;
+
+                let tooltipY = activeTooltip.y - tooltipHeight - 8;
+                if (tooltipY < 4) {
+                  tooltipY = activeTooltip.y + 12;
+                }
+
+                return (
+                  <g key="tooltip-group" style={{ pointerEvents: 'none' }}>
+                    {/* 垂直引導線 */}
+                    <line 
+                      x1={activeTooltip.x} 
+                      y1={paddingY - 6} 
+                      x2={activeTooltip.x} 
+                      y2={height - paddingY - 2} 
+                      stroke="#94a3b8" 
+                      strokeWidth="0.8" 
+                      strokeDasharray="2 2" 
+                    />
+                    {/* 提示框背景 */}
+                    <rect
+                      x={tooltipX}
+                      y={tooltipY}
+                      width={tooltipWidth}
+                      height={tooltipHeight}
+                      rx="5"
+                      fill="#1e293b"
+                      fillOpacity="0.9"
+                      stroke="#475569"
+                      strokeWidth="1"
+                    />
+                    {/* 時間 */}
+                    <text
+                      x={tooltipX + tooltipWidth / 2}
+                      y={tooltipY + 11}
+                      textAnchor="middle"
+                      fontSize="7.5"
+                      fill="#cbd5e1"
+                      className="font-mono font-bold"
+                    >
+                      {activeTooltip.time}
+                    </text>
+                    {/* 數據內容 */}
+                    <text
+                      x={tooltipX + tooltipWidth / 2}
+                      y={tooltipY + 23}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fontWeight="bold"
+                      fill="#ffffff"
+                      className="font-sans"
+                    >
+                      {activeTooltip.value}
+                    </text>
+                  </g>
+                );
+              })()
+            )}
           </svg>
         </div>
       </div>
@@ -954,8 +1058,115 @@ function App() {
                 {/* DBP */}
                 <circle cx={p.x} cy={p.yDbp} r="3" fill="#ffffff" stroke="#475569" strokeWidth="1.5" />
                 <text x={p.x} y={p.yDbp + 9} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
+
+                {/* 增加觸控/懸停感應區 */}
+                <circle
+                  cx={p.x}
+                  cy={p.yMap}
+                  r="14"
+                  fill="transparent"
+                  className="cursor-pointer"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                  onMouseEnter={() => {
+                    const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                    p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                    setActiveTooltip({
+                      chartId: 'bp',
+                      index: i,
+                      x: p.x,
+                      y: p.yMap,
+                      time: timeStr,
+                      value: `血壓: ${p.sbp}/${p.dbp} (MAP: ${p.map})`
+                    });
+                  }}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const isSame = activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i;
+                    if (isSame) {
+                      setActiveTooltip(null);
+                    } else {
+                      const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                      p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                      setActiveTooltip({
+                        chartId: 'bp',
+                        index: i,
+                        x: p.x,
+                        y: p.yMap,
+                        time: timeStr,
+                        value: `血壓: ${p.sbp}/${p.dbp} (MAP: ${p.map})`
+                      });
+                    }
+                  }}
+                />
               </g>
             ))}
+
+            {/* 繪製浮動提示框 */}
+            {activeTooltip && activeTooltip.chartId === 'bp' && (
+              (() => {
+                const tooltipWidth = 125;
+                const tooltipHeight = 32;
+                let tooltipX = activeTooltip.x - tooltipWidth / 2;
+                if (tooltipX < 4) tooltipX = 4;
+                if (tooltipX + tooltipWidth > width - 4) tooltipX = width - tooltipWidth - 4;
+
+                let tooltipY = activeTooltip.y - tooltipHeight - 12;
+                if (tooltipY < 4) {
+                  tooltipY = activeTooltip.y + 14;
+                }
+
+                return (
+                  <g key="tooltip-group-bp" style={{ pointerEvents: 'none' }}>
+                    {/* 垂直引導線 */}
+                    <line 
+                      x1={activeTooltip.x} 
+                      y1={paddingY - 6} 
+                      x2={activeTooltip.x} 
+                      y2={height - paddingY - 2} 
+                      stroke="#94a3b8" 
+                      strokeWidth="0.8" 
+                      strokeDasharray="2 2" 
+                    />
+                    {/* 提示框背景 */}
+                    <rect
+                      x={tooltipX}
+                      y={tooltipY}
+                      width={tooltipWidth}
+                      height={tooltipHeight}
+                      rx="5"
+                      fill="#1e293b"
+                      fillOpacity="0.9"
+                      stroke="#475569"
+                      strokeWidth="1"
+                    />
+                    {/* 時間 */}
+                    <text
+                      x={tooltipX + tooltipWidth / 2}
+                      y={tooltipY + 11}
+                      textAnchor="middle"
+                      fontSize="7.5"
+                      fill="#cbd5e1"
+                      className="font-mono font-bold"
+                    >
+                      {activeTooltip.time}
+                    </text>
+                    {/* 數據內容 */}
+                    <text
+                      x={tooltipX + tooltipWidth / 2}
+                      y={tooltipY + 23}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fontWeight="bold"
+                      fill="#ffffff"
+                      className="font-sans"
+                    >
+                      {activeTooltip.value}
+                    </text>
+                  </g>
+                );
+              })()
+            )}
           </svg>
         </div>
       </div>
@@ -1005,9 +1216,23 @@ function App() {
       switch (color) {
         case 'clear_yellow': return '#fed7aa'; // light amber-200
         case 'dark_yellow': return '#f59e0b';  // amber-500
+        case 'tea':
         case 'tea_brown': return '#b45309';    // amber-700
+        case 'bright_red':
         case 'hematuria_red': return '#f87171'; // red-400 (血尿)
         default: return '#06b6d4';              // cyan-500
+      }
+    };
+
+    const getUrineColorText = (color) => {
+      switch (color) {
+        case 'clear_yellow': return '清澈/淡黃';
+        case 'dark_yellow': return '偏黃';
+        case 'tea':
+        case 'tea_brown': return '深茶色';
+        case 'bright_red':
+        case 'hematuria_red': return '鮮紅血尿';
+        default: return '其他';
       }
     };
 
@@ -1060,7 +1285,7 @@ function App() {
                     width={barWidth}
                     height={p.barHeight}
                     fill={getColorFill(p.color)}
-                    stroke={p.color === 'hematuria_red' ? '#ef4444' : '#0891b2'}
+                    stroke={p.color === 'bright_red' || p.color === 'hematuria_red' ? '#ef4444' : '#0891b2'}
                     strokeWidth="0.5"
                     rx="1.5"
                   />
@@ -1075,9 +1300,117 @@ function App() {
                   >
                     {p.val}
                   </text>
+                  
+                  {/* 增加觸控/懸停感應區 */}
+                  <rect
+                    x={p.x - (barWidth + 12) / 2}
+                    y={paddingY - 6}
+                    width={barWidth + 12}
+                    height={height - paddingY + 4}
+                    fill="transparent"
+                    className="cursor-pointer"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                    onMouseEnter={() => {
+                      const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                      p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                      setActiveTooltip({
+                        chartId: 'urine',
+                        index: i,
+                        x: p.x,
+                        y: p.y - 4,
+                        time: timeStr,
+                        value: `尿量: ${p.val} cc (${getUrineColorText(p.color)})`
+                      });
+                    }}
+                    onMouseLeave={() => setActiveTooltip(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const isSame = activeTooltip && activeTooltip.chartId === 'urine' && activeTooltip.index === i;
+                      if (isSame) {
+                        setActiveTooltip(null);
+                      } else {
+                        const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                        p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                        setActiveTooltip({
+                          chartId: 'urine',
+                          index: i,
+                          x: p.x,
+                          y: p.y - 4,
+                          time: timeStr,
+                          value: `尿量: ${p.val} cc (${getUrineColorText(p.color)})`
+                        });
+                      }
+                    }}
+                  />
                 </g>
               );
             })}
+
+            {/* 繪製浮動提示框 */}
+            {activeTooltip && activeTooltip.chartId === 'urine' && (
+              (() => {
+                const tooltipWidth = 110;
+                const tooltipHeight = 32;
+                let tooltipX = activeTooltip.x - tooltipWidth / 2;
+                if (tooltipX < 4) tooltipX = 4;
+                if (tooltipX + tooltipWidth > width - 4) tooltipX = width - tooltipWidth - 4;
+
+                let tooltipY = activeTooltip.y - tooltipHeight - 8;
+                if (tooltipY < 4) {
+                  tooltipY = activeTooltip.y + 14;
+                }
+
+                return (
+                  <g key="tooltip-group-urine" style={{ pointerEvents: 'none' }}>
+                    {/* 垂直引導線 */}
+                    <line 
+                      x1={activeTooltip.x} 
+                      y1={paddingY - 6} 
+                      x2={activeTooltip.x} 
+                      y2={height - paddingY - 2} 
+                      stroke="#94a3b8" 
+                      strokeWidth="0.8" 
+                      strokeDasharray="2 2" 
+                    />
+                    {/* 提示框背景 */}
+                    <rect
+                      x={tooltipX}
+                      y={tooltipY}
+                      width={tooltipWidth}
+                      height={tooltipHeight}
+                      rx="5"
+                      fill="#1e293b"
+                      fillOpacity="0.9"
+                      stroke="#475569"
+                      strokeWidth="1"
+                    />
+                    {/* 時間 */}
+                    <text
+                      x={tooltipX + tooltipWidth / 2}
+                      y={tooltipY + 11}
+                      textAnchor="middle"
+                      fontSize="7.5"
+                      fill="#cbd5e1"
+                      className="font-mono font-bold"
+                    >
+                      {activeTooltip.time}
+                    </text>
+                    {/* 數據內容 */}
+                    <text
+                      x={tooltipX + tooltipWidth / 2}
+                      y={tooltipY + 23}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fontWeight="bold"
+                      fill="#ffffff"
+                      className="font-sans"
+                    >
+                      {activeTooltip.value}
+                    </text>
+                  </g>
+                );
+              })()
+            )}
           </svg>
         </div>
       </div>
@@ -1438,19 +1771,24 @@ function App() {
         <div className="flex items-center space-x-2.5">
           {/* LOGO 圖示放在最左上角 */}
           <img src="/logo.png" alt="CareFlow Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-slate-200" />
-          <div className="flex flex-col justify-center space-y-0.5">
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-xs font-extrabold tracking-wide text-monitor-text uppercase leading-none" id="app-title">
+          <div className="flex flex-col justify-center space-y-1 min-w-0">
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <h1 className="text-xs font-extrabold tracking-wide text-monitor-text uppercase leading-tight whitespace-nowrap" id="app-title">
                 CareFlow
               </h1>
+              <span className="text-[9px] text-monitor-dim font-bold whitespace-nowrap leading-tight">
+                照護助理
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
               {gasUrl ? (
                 syncStatus === 'idle' ? (
-                  <span className="inline-flex items-center gap-0.5 text-slate-400 text-[8px] font-bold bg-slate-100 px-1 py-0.2 rounded leading-none">
+                  <span className="inline-flex items-center gap-0.5 text-slate-400 text-[8px] font-bold bg-slate-100 px-1 py-0.2 rounded leading-tight whitespace-nowrap">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                    <span>雲端</span>
+                    <span>雲端連線</span>
                   </span>
                 ) : (
-                  <span className={`inline-flex items-center gap-0.5 text-[8px] font-bold px-1 py-0.2 rounded leading-none ${
+                  <span className={`inline-flex items-center gap-0.5 text-[8px] font-bold px-1 py-0.2 rounded leading-tight whitespace-nowrap ${
                     syncStatus === 'syncing' ? 'bg-amber-50 text-amber-600 animate-pulse' :
                     syncStatus === 'success' ? 'bg-emerald-50 text-emerald-600' :
                     'bg-rose-50 text-rose-600'
@@ -1461,12 +1799,9 @@ function App() {
                   </span>
                 )
               ) : (
-                <span className="text-slate-400 text-[8px] font-bold bg-slate-100 px-1 py-0.2 rounded leading-none">本地</span>
+                <span className="text-slate-400 text-[8px] font-bold bg-slate-100 px-1 py-0.2 rounded leading-tight whitespace-nowrap">本地儲存</span>
               )}
             </div>
-            <p className="text-[10px] text-monitor-dim leading-none font-medium">
-              照護助理
-            </p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
@@ -1541,7 +1876,11 @@ function App() {
       )}
 
       {/* 主要操作區域 */}
-      <main ref={mainRef} className="flex-1 p-4 space-y-4 pb-28 overflow-y-auto no-scrollbar">
+      <main 
+        ref={mainRef} 
+        onClick={() => setActiveTooltip(null)} 
+        className="flex-1 p-4 space-y-4 pb-28 overflow-y-auto no-scrollbar"
+      >
         
 
         {/* 頁籤導覽按鈕 */}
@@ -1592,9 +1931,9 @@ function App() {
               }`}>
                 {latest.hr}
               </div>
-              <div className="mt-2 text-[10px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1">
-                <span>警報門檻: &gt;100</span>
-                {isHrAlert(latest.hr) && latest.hr !== '--' && <span className="text-monitor-red font-bold animate-pulse">心速快</span>}
+              <div className="mt-2 text-[9px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1 flex-wrap gap-1">
+                <span className="whitespace-nowrap">警報: &gt;100</span>
+                {isHrAlert(latest.hr) && latest.hr !== '--' && <span className="text-monitor-red font-bold animate-pulse whitespace-nowrap">心速快</span>}
               </div>
             </button>
 
@@ -1619,9 +1958,9 @@ function App() {
               }`}>
                 {latest.spo2}
               </div>
-              <div className="mt-2 text-[10px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1">
-                <span>警報門檻: &lt;95%</span>
-                {isSpo2Alert(latest.spo2) && latest.spo2 !== '--' && <span className="text-monitor-red font-bold animate-pulse">血氧低</span>}
+              <div className="mt-2 text-[9px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1 flex-wrap gap-1">
+                <span className="whitespace-nowrap">警報: &lt;95%</span>
+                {isSpo2Alert(latest.spo2) && latest.spo2 !== '--' && <span className="text-monitor-red font-bold animate-pulse whitespace-nowrap">血氧低</span>}
               </div>
             </button>
 
@@ -1648,9 +1987,9 @@ function App() {
               }`}>
                 {latest.rr}
               </div>
-              <div className="mt-2 text-[10px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1">
-                <span>警報門檻: &gt;24</span>
-                {isRrAlert(latest.rr) && latest.rr !== '--' && <span className="text-monitor-red font-bold animate-pulse">急促</span>}
+              <div className="mt-2 text-[9px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1 flex-wrap gap-1">
+                <span className="whitespace-nowrap">警報: &gt;24</span>
+                {isRrAlert(latest.rr) && latest.rr !== '--' && <span className="text-monitor-red font-bold animate-pulse whitespace-nowrap">急促</span>}
               </div>
             </button>
 
@@ -1675,9 +2014,9 @@ function App() {
               }`}>
                 {latest.bp}
               </div>
-              <div className="mt-2 text-[10px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1">
-                <span>平均壓 MAP: <strong className="text-monitor-text font-mono">{latest.map}</strong></span>
-                {isBpAlert(latest.sbp, latest.dbp) && latest.sbp !== '--' && <span className="text-monitor-red font-bold animate-pulse">異常</span>}
+              <div className="mt-2 text-[9px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1 flex-wrap gap-1">
+                <span className="whitespace-nowrap">平均 MAP: <strong className="text-monitor-text font-mono">{latest.map}</strong></span>
+                {isBpAlert(latest.sbp, latest.dbp) && latest.sbp !== '--' && <span className="text-monitor-red font-bold animate-pulse whitespace-nowrap">異常</span>}
               </div>
             </button>
           </div>
@@ -1833,23 +2172,38 @@ function App() {
                       </div>
                       
                       {log.type === 'vitals' ? (
-                        <div className="grid grid-cols-4 gap-1 pt-1 font-mono text-[11px] text-monitor-text">
-                          <div><span className="text-monitor-dim">心率:</span> <strong className={isHrAlert(log.hr) ? 'text-monitor-red' : 'text-monitor-green'}>{log.hr}</strong></div>
-                          <div><span className="text-monitor-dim">血氧:</span> <strong className={isSpo2Alert(log.spo2) ? 'text-monitor-red' : 'text-monitor-cyan'}>{log.spo2}%</strong></div>
-                          <div><span className="text-monitor-dim">呼吸:</span> <strong className={isRrAlert(log.rr) ? 'text-monitor-red' : 'text-monitor-yellow'}>{log.rr}</strong></div>
-                          <div><span className="text-monitor-dim">血壓:</span> <strong className={isBpAlert(log.sbp, log.dbp) ? 'text-monitor-red' : 'text-monitor-text'}>{log.sbp}/{log.dbp}</strong></div>
+                        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pt-1 font-mono text-[11px] text-monitor-text">
+                          <div className="whitespace-nowrap">
+                            <span className="text-monitor-dim">心率:</span>{' '}
+                            <strong className={isHrAlert(log.hr) ? 'text-monitor-red' : 'text-monitor-green'}>{log.hr}</strong>
+                            <span className="text-[9px] text-monitor-dim ml-0.5">bpm</span>
+                          </div>
+                          <div className="whitespace-nowrap">
+                            <span className="text-monitor-dim">血氧:</span>{' '}
+                            <strong className={isSpo2Alert(log.spo2) ? 'text-monitor-red' : 'text-monitor-cyan'}>{log.spo2}%</strong>
+                          </div>
+                          <div className="whitespace-nowrap">
+                            <span className="text-monitor-dim">呼吸:</span>{' '}
+                            <strong className={isRrAlert(log.rr) ? 'text-monitor-red' : 'text-monitor-yellow'}>{log.rr}</strong>
+                            <span className="text-[9px] text-monitor-dim ml-0.5">rpm</span>
+                          </div>
+                          <div className="whitespace-nowrap">
+                            <span className="text-monitor-dim">血壓:</span>{' '}
+                            <strong className={isBpAlert(log.sbp, log.dbp) ? 'text-monitor-red' : 'text-monitor-text'}>{log.sbp}/{log.dbp}</strong>
+                            <span className="text-[9px] text-monitor-dim ml-0.5">mmHg</span>
+                          </div>
                         </div>
                       ) : (
                         <div className="text-[11px] text-monitor-text pt-0.5">
                           {log.eventType === 'urine' ? (
-                            <div className="flex items-center gap-2">
-                              <span>排出尿量: <strong className="text-monitor-cyan">{log.volumeCc} cc</strong></span>
-                              <span className="flex items-center gap-1.5">
-                                尿色: 
-                                <span className={`w-2.5 h-2.5 rounded-full border border-slate-300 ${
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className="whitespace-nowrap">排出尿量: <strong className="text-monitor-cyan">{log.volumeCc} cc</strong></span>
+                              <span className="flex items-center gap-1 whitespace-nowrap">
+                                <span>尿色:</span> 
+                                <span className={`w-2.5 h-2.5 rounded-full border border-slate-300 inline-block ${
                                   log.color === 'bright_red' ? 'bg-[#ef4444]' : log.color === 'tea' ? 'bg-[#8d6e63]' : 'bg-[#fef08a]'
                                 }`} />
-                                <strong className="text-monitor-text font-normal">
+                                <strong className="text-monitor-text font-bold">
                                   {log.color === 'bright_red' ? '鮮紅肉眼血尿' : log.color === 'tea' ? '深茶色' : '清澈淡黃'}
                                 </strong>
                               </span>
@@ -2568,22 +2922,30 @@ function App() {
       <SettingsModal
         show={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
-        fontSize={fontSize}
-        setFontSize={setFontSize}
+        fontScale={fontScale}
+        setFontScale={setFontScale}
       />
 
     </div>
   );
 }
 
-// 顯示設定對話框元件 (僅提供字型大小控制，避免不必要的功能)
+// 顯示設定對話框元件 (提供字型大小滑桿調整與快速預設)
 function SettingsModal({ 
   show, 
   onClose, 
-  fontSize,
-  setFontSize
+  fontScale,
+  setFontScale
 }) {
   if (!show) return null;
+
+  const presets = [
+    { label: '最小', percent: '85%', value: 0.85 },
+    { label: '適中', percent: '100%', value: 1.0 },
+    { label: '放大', percent: '115%', value: 1.15 },
+    { label: '加大', percent: '130%', value: 1.3 },
+    { label: '最大', percent: '145%', value: 1.45 }
+  ];
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 transition-opacity animate-fade-in">
@@ -2605,31 +2967,53 @@ function SettingsModal({
         <div className="space-y-4 text-xs">
           {/* 介面字型大小設定 */}
           <div className="space-y-3 pt-1">
-            <h4 className="font-bold text-slate-800 border-b border-slate-100 pb-1 flex justify-between items-center font-sans">
+            <h4 className="font-bold text-slate-800 flex justify-between items-center font-sans">
               <span>介面顯示字型大小</span>
+              <span className="text-xs font-mono font-extrabold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                {Math.round(fontScale * 100)}%
+              </span>
             </h4>
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { label: '偏小 (90%)', value: 'small' },
-                { label: '適中 (100%)', value: 'normal' },
-                { label: '中等 (112%)', value: 'medium' },
-                { label: '偏大 (124%)', value: 'large' }
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setFontSize(opt.value)}
-                  className={`py-2 px-1 text-center font-semibold rounded-lg border transition text-[10px] ${
-                    fontSize === opt.value
-                      ? 'bg-slate-700 border-slate-700 text-white shadow-sm font-bold'
-                      : 'bg-monitor-bg border-monitor-border text-monitor-dim hover:text-monitor-text hover:bg-slate-50'
-                  }`}
-                >
-                  {opt.label.split(' ')[0]}
-                  <span className="block text-[8px] font-mono opacity-80">{opt.label.split(' ')[1]}</span>
-                </button>
-              ))}
+            
+            {/* 滑桿調整 */}
+            <div className="space-y-1 py-1">
+              <input 
+                type="range" 
+                min="0.85" 
+                max="1.45" 
+                step="0.05" 
+                value={fontScale} 
+                onChange={(e) => setFontScale(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-700" 
+              />
+              <div className="flex justify-between text-[8px] text-monitor-dim font-mono font-bold px-0.5">
+                <span>85% (最小)</span>
+                <span>100% (預設)</span>
+                <span>145% (最大)</span>
+              </div>
             </div>
+
+            {/* 快速預設按鈕 */}
+            <div className="space-y-1.5">
+              <div className="text-[9px] text-monitor-dim font-bold uppercase tracking-wider">快速比例選擇</div>
+              <div className="grid grid-cols-5 gap-1">
+                {presets.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setFontScale(opt.value)}
+                    className={`py-2 px-0.5 text-center rounded-lg border transition flex flex-col items-center justify-center ${
+                      Math.abs(fontScale - opt.value) < 0.01
+                        ? 'bg-slate-700 border-slate-700 text-white shadow-sm font-bold'
+                        : 'bg-monitor-bg border-monitor-border text-monitor-dim hover:text-monitor-text hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-[10px] font-bold">{opt.label}</span>
+                    <span className="text-[8px] font-mono opacity-80 leading-none mt-0.5">{opt.percent}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <p className="text-[9px] text-monitor-dim leading-relaxed">
               調整字型大小後，系統會自動配合原版面進行微調，確保在縮放時不會產生異常折行或超出螢幕框架。
             </p>
