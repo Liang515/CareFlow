@@ -1288,14 +1288,28 @@ function App() {
     const hoursForAvg = Math.max(1, elapsedHoursTotal);
     const avgHourlyUrine = (totalUrineVol / hoursForAvg).toFixed(1);
 
-    const movingAverages = points.map((p, i) => {
+    const rates = points.map((p, i) => {
+      let elapsedHours = 4; // 第一筆預設為 4 小時
+      if (i > 0) {
+        const diffMs = points[i].time.getTime() - points[i-1].time.getTime();
+        elapsedHours = diffMs / (1000 * 60 * 60);
+        if (elapsedHours < 0.5) elapsedHours = 0.5; // 防極端小區間
+      }
+      return p.val / elapsedHours;
+    });
+
+    const movingAverageRates = rates.map((r, i) => {
       const start = Math.max(0, i - 2);
-      const subset = points.slice(start, i + 1);
-      const sum = subset.reduce((acc, curr) => acc + curr.val, 0);
-      const avg = Math.round(sum / subset.length);
-      const barHeight = (avg / maxVal) * (height - paddingY * 2 - 12);
-      const y = height - paddingY - 2 - barHeight;
-      return { x: p.x, y, avg };
+      const subset = rates.slice(start, i + 1);
+      const sum = subset.reduce((acc, val) => acc + val, 0);
+      return sum / subset.length;
+    });
+
+    const movingAverages = points.map((p, i) => {
+      const avgRate = movingAverageRates[i];
+      const rateHeight = (avgRate / maxVal) * (height - paddingY * 2 - 12);
+      const y = height - paddingY - 2 - Math.max(0, Math.min(height - paddingY * 2 - 12, rateHeight));
+      return { x: p.x, y, avgRate };
     });
     const pathD = `M ${movingAverages.map(ma => `${ma.x} ${ma.y}`).join(' L ')}`;
 
@@ -1306,7 +1320,7 @@ function App() {
             <span>💧 尿量排泄趨勢 (Urine Output)</span>
             <span className="text-[9px] font-normal text-slate-400 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded-full whitespace-nowrap">
               <span className="inline-block w-2.5 h-0 border-t-2 border-dashed border-cyan-500 mr-1 align-middle"></span>
-              3次移動平均
+              每小時尿量 (3次移動平均)
             </span>
           </span>
           <span className="text-[10px] text-monitor-dim">
@@ -1390,7 +1404,7 @@ function App() {
                         x: p.x,
                         y: p.y - 4,
                         time: timeStr,
-                        value: `尿量: ${p.val} cc (${getUrineColorText(p.color)}) | 平均: ${movingAverages[i].avg} cc`
+                        value: `單次尿量: ${p.val} cc (${getUrineColorText(p.color)}) | 每小時平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
                       });
                     }}
                     onMouseLeave={() => setActiveTooltip(null)}
@@ -1408,7 +1422,7 @@ function App() {
                           x: p.x,
                           y: p.y - 4,
                           time: timeStr,
-                          value: `尿量: ${p.val} cc (${getUrineColorText(p.color)}) | 平均: ${movingAverages[i].avg} cc`
+                          value: `單次尿量: ${p.val} cc (${getUrineColorText(p.color)}) | 每小時平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
                         });
                       }
                     }}
