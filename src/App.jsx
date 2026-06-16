@@ -1095,15 +1095,11 @@ function App() {
       
       {/* 1. 清爽型床邊數據標題欄 */}
       <header className="bg-monitor-card border-b border-monitor-border px-4 py-3 sticky top-0 z-40 flex items-center justify-between shadow-sm">
-        <div className="flex items-center space-x-2">
-          {/* 微動態綠色信號指示器 */}
-          <div className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-monitor-green opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-monitor-green"></span>
-          </div>
+        <div className="flex items-center space-x-2.5">
+          {/* LOGO 圖示放在最左上角 */}
+          <img src="/logo.png" alt="CareFlow Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-slate-200" />
           <div>
-            <h1 className="text-sm font-extrabold tracking-widest text-monitor-text uppercase flex items-center gap-1.5" id="app-title">
-              <img src="/logo.png" alt="CareFlow" className="w-5 h-5 rounded-md object-cover" />
+            <h1 className="text-sm font-extrabold tracking-widest text-monitor-text uppercase" id="app-title">
               CareFlow 照護助理
             </h1>
             <p className="text-[9px] text-monitor-dim tracking-wider font-mono flex items-center gap-1.5">
