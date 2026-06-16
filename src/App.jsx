@@ -806,7 +806,9 @@ function App() {
   // 儲存生理數據
   const handleAddVitals = (e) => {
     e.preventDefault();
-    const calculatedMap = Math.round(diastolic + (systolic - diastolic) / 3);
+    const sbpVal = Number(systolic) || 120;
+    const dbpVal = Number(diastolic) || 80;
+    const calculatedMap = Math.round(dbpVal + (sbpVal - dbpVal) / 3);
     const newLog = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
@@ -814,8 +816,8 @@ function App() {
       hr: heartRate,
       spo2: oxygen,
       rr: respRate,
-      sbp: systolic,
-      dbp: diastolic,
+      sbp: sbpVal,
+      dbp: dbpVal,
       map: calculatedMap,
       notes: noteText.trim() || undefined
     };
@@ -835,7 +837,7 @@ function App() {
       timestamp: new Date().toISOString(),
       type: 'event',
       eventType: 'urine',
-      volumeCc: urineVolume,
+      volumeCc: Number(urineVolume) || 200,
       color: urineColor,
       notes: noteText.trim() || undefined
     };
@@ -1726,52 +1728,68 @@ function App() {
                   {/* 收縮壓 */}
                   <div className="space-y-1">
                     <label className="text-[10px] text-monitor-dim block">收縮壓 Systolic (mmHg)</label>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <button 
                         type="button" 
-                        onClick={() => setSystolic(Math.max(60, systolic - 5))}
-                        className="p-2 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100"
+                        onClick={() => setSystolic(Math.max(60, (Number(systolic) || 120) - 1))}
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-8 h-8 flex items-center justify-center flex-shrink-0"
+                        title="-1 mmHg"
                       >
-                        -5
+                        -1
                       </button>
                       <input 
                         type="number" 
                         value={systolic} 
-                        onChange={(e) => setSystolic(parseInt(e.target.value) || 120)}
-                        className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSystolic(val === '' ? '' : parseInt(val) || 0);
+                        }}
+                        onBlur={() => {
+                          if (!systolic || systolic < 1) setSystolic(120);
+                        }}
+                        className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red min-w-0"
                       />
                       <button 
                         type="button" 
-                        onClick={() => setSystolic(Math.min(260, systolic + 5))}
-                        className="p-2 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100"
+                        onClick={() => setSystolic(Math.min(260, (Number(systolic) || 120) + 1))}
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-8 h-8 flex items-center justify-center flex-shrink-0"
+                        title="+1 mmHg"
                       >
-                        +5
+                        +1
                       </button>
                     </div>
                   </div>
                   {/* 舒張壓 */}
                   <div className="space-y-1">
                     <label className="text-[10px] text-monitor-dim block">舒張壓 Diastolic (mmHg)</label>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <button 
                         type="button" 
-                        onClick={() => setDiastolic(Math.max(40, diastolic - 5))}
-                        className="p-2 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100"
+                        onClick={() => setDiastolic(Math.max(40, (Number(diastolic) || 80) - 1))}
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-8 h-8 flex items-center justify-center flex-shrink-0"
+                        title="-1 mmHg"
                       >
-                        -5
+                        -1
                       </button>
                       <input 
                         type="number" 
                         value={diastolic} 
-                        onChange={(e) => setDiastolic(parseInt(e.target.value) || 80)}
-                        className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setDiastolic(val === '' ? '' : parseInt(val) || 0);
+                        }}
+                        onBlur={() => {
+                          if (!diastolic || diastolic < 1) setDiastolic(80);
+                        }}
+                        className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red min-w-0"
                       />
                       <button 
                         type="button" 
-                        onClick={() => setDiastolic(Math.min(160, diastolic + 5))}
-                        className="p-2 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100"
+                        onClick={() => setDiastolic(Math.min(160, (Number(diastolic) || 80) + 1))}
+                        className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-8 h-8 flex items-center justify-center flex-shrink-0"
+                        title="+1 mmHg"
                       >
-                        +5
+                        +1
                       </button>
                     </div>
                   </div>
@@ -1825,25 +1843,37 @@ function App() {
               <div className="space-y-1.5">
                 <div className="flex justify-between font-semibold">
                   <span className="text-monitor-cyan">尿液容量</span>
-                  <span className="text-monitor-dim">{urineVolume} cc</span>
+                  <span className="text-monitor-dim">{urineVolume || 0} cc</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
                     type="button" 
-                    onClick={() => setUrineVolume(Math.max(0, urineVolume - 50))}
+                    onClick={() => setUrineVolume(Math.max(0, (Number(urineVolume) || 0) - 10))}
                     className="flex-1 py-3 bg-monitor-bg border border-monitor-border rounded-lg text-monitor-text font-bold active:bg-slate-100"
                   >
-                    -50
+                    -10
                   </button>
-                  <div className="w-24 text-center text-xl font-telemetry font-bold text-monitor-cyan py-1.5 bg-monitor-bg border border-monitor-border rounded-lg">
-                    {urineVolume} ml
+                  <div className="w-28 flex items-center bg-monitor-bg border border-monitor-border rounded-lg px-2">
+                    <input 
+                      type="number" 
+                      value={urineVolume} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setUrineVolume(val === '' ? '' : Math.max(0, parseInt(val) || 0));
+                      }}
+                      onBlur={() => {
+                        if (!urineVolume || urineVolume < 0) setUrineVolume(200);
+                      }}
+                      className="w-full text-center text-xl font-telemetry font-bold text-monitor-cyan bg-transparent focus:outline-none min-w-0"
+                    />
+                    <span className="text-xs text-monitor-dim font-bold ml-1">ml</span>
                   </div>
                   <button 
                     type="button" 
-                    onClick={() => setUrineVolume(urineVolume + 50)}
+                    onClick={() => setUrineVolume((Number(urineVolume) || 0) + 10)}
                     className="flex-1 py-3 bg-monitor-bg border border-monitor-border rounded-lg text-monitor-text font-bold active:bg-slate-100"
                   >
-                    +50
+                    +10
                   </button>
                 </div>
                 <div className="grid grid-cols-4 gap-2 pt-1">
