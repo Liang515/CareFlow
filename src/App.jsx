@@ -1992,34 +1992,44 @@ function App() {
             </div>
             <div className="flex items-center gap-1">
               {gasUrl ? (() => {
-                let badgeClass = "";
-                let badgeContent = null;
                 if (syncStatus === 'idle') {
-                  badgeClass = "bg-slate-100 text-slate-400";
-                  badgeContent = (
-                    <>
+                  return (
+                    <span 
+                      key="badge-idle"
+                      className="inline-flex items-center gap-0.5 text-slate-400 text-[8px] font-bold bg-slate-100 px-1.5 py-0.5 rounded leading-tight whitespace-nowrap"
+                    >
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse mr-0.5" />
                       <span>雲端連線</span>
-                    </>
+                    </span>
                   );
                 } else if (syncStatus === 'syncing') {
-                  badgeClass = "bg-amber-100 text-amber-700 animate-pulse";
-                  badgeContent = <span>同步中</span>;
+                  return (
+                    <span 
+                      key="badge-syncing"
+                      className="inline-flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded leading-tight whitespace-nowrap bg-amber-100 text-amber-700"
+                    >
+                      <span>同步中</span>
+                    </span>
+                  );
                 } else if (syncStatus === 'success') {
-                  badgeClass = "bg-emerald-100 text-emerald-700";
-                  badgeContent = <span>同步成功</span>;
+                  return (
+                    <span 
+                      key="badge-success"
+                      className="inline-flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded leading-tight whitespace-nowrap bg-emerald-100 text-emerald-700"
+                    >
+                      <span>同步成功</span>
+                    </span>
+                  );
                 } else {
-                  badgeClass = "bg-rose-100 text-rose-700";
-                  badgeContent = <span>連線失敗</span>;
+                  return (
+                    <span 
+                      key="badge-error"
+                      className="inline-flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded leading-tight whitespace-nowrap bg-rose-100 text-rose-700"
+                    >
+                      <span>連線失敗</span>
+                    </span>
+                  );
                 }
-                return (
-                  <span 
-                    key="sync-status-badge"
-                    className={`inline-flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded leading-tight whitespace-nowrap ${badgeClass}`}
-                  >
-                    {badgeContent}
-                  </span>
-                );
               })() : (
                 <span key="local-badge" className="text-slate-400 text-[8px] font-bold bg-slate-100 px-1.5 py-0.5 rounded leading-tight whitespace-nowrap">本地儲存</span>
               )}
@@ -2031,16 +2041,16 @@ function App() {
           <button
             type="button"
             onClick={() => {
+              if (syncStatus === 'syncing') return;
               if (gasUrl) {
                 triggerSync(password);
               } else {
                 window.location.reload();
               }
             }}
-            disabled={syncStatus === 'syncing'}
-            className={`p-1.5 rounded-lg border transition active:scale-95 disabled:opacity-100 disabled:cursor-not-allowed ${
+            className={`p-1.5 rounded-lg border transition active:scale-95 ${
               syncStatus === 'syncing' 
-                ? 'bg-amber-100 border-amber-200 text-amber-700 disabled:bg-amber-100 disabled:text-amber-700 disabled:border-amber-200' 
+                ? 'bg-amber-100 border-amber-200 text-amber-700 cursor-not-allowed' 
                 : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-500 hover:text-slate-700'
             }`}
             title="重新整理數據"
