@@ -1404,7 +1404,8 @@ function App() {
                         x: p.x,
                         y: p.y - 4,
                         time: timeStr,
-                        value: `單次尿量: ${p.val} cc (${getUrineColorText(p.color)}) | 每小時平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
+                        singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
+                        avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
                       });
                     }}
                     onMouseLeave={() => setActiveTooltip(null)}
@@ -1422,7 +1423,8 @@ function App() {
                           x: p.x,
                           y: p.y - 4,
                           time: timeStr,
-                          value: `單次尿量: ${p.val} cc (${getUrineColorText(p.color)}) | 每小時平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
+                          singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
+                          avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
                         });
                       }
                     }}
@@ -1460,8 +1462,8 @@ function App() {
             {/* 繪製浮動提示框 */}
             {activeTooltip && activeTooltip.chartId === 'urine' && (
               (() => {
-                const tooltipWidth = 160;
-                const tooltipHeight = 32;
+                const tooltipWidth = 140;
+                const tooltipHeight = 44;
                 let tooltipX = activeTooltip.x - tooltipWidth / 2;
                 if (tooltipX < 4) tooltipX = 4;
                 if (tooltipX + tooltipWidth > width - 4) tooltipX = width - tooltipWidth - 4;
@@ -1498,7 +1500,7 @@ function App() {
                     {/* 時間 */}
                     <text
                       x={tooltipX + tooltipWidth / 2}
-                      y={tooltipY + 11}
+                      y={tooltipY + 12}
                       textAnchor="middle"
                       fontSize="7.5"
                       fill="#cbd5e1"
@@ -1506,7 +1508,7 @@ function App() {
                     >
                       {activeTooltip.time}
                     </text>
-                    {/* 數據內容 */}
+                    {/* 單次尿量 */}
                     <text
                       x={tooltipX + tooltipWidth / 2}
                       y={tooltipY + 23}
@@ -1516,7 +1518,19 @@ function App() {
                       fill="#ffffff"
                       className="font-sans"
                     >
-                      {activeTooltip.value}
+                      {activeTooltip.singleVal}
+                    </text>
+                    {/* 每小時平均 */}
+                    <text
+                      x={tooltipX + tooltipWidth / 2}
+                      y={tooltipY + 34}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fontWeight="bold"
+                      fill="#22d3ee"
+                      className="font-sans"
+                    >
+                      {activeTooltip.avgVal}
                     </text>
                   </g>
                 );
