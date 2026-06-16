@@ -1501,6 +1501,16 @@ function App() {
           >
             <Lock size={15} />
           </button>
+
+          {/* 顯示設定按鈕 */}
+          <button
+            type="button"
+            onClick={() => setShowSettingsModal(true)}
+            className="p-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-500 hover:text-slate-700 rounded-lg transition"
+            title="顯示與介面設定"
+          >
+            <Settings size={15} />
+          </button>
           
           <div className="text-right pl-1">
             <div className="text-xs font-mono font-bold text-monitor-text">
@@ -1530,26 +1540,6 @@ function App() {
       {/* 主要操作區域 */}
       <main ref={mainRef} className="flex-1 p-4 space-y-4 pb-28 overflow-y-auto no-scrollbar">
         
-        {/* 受測者卡片 */}
-        <div className="bg-monitor-card border border-monitor-border rounded-xl p-3 flex justify-between items-center text-xs shadow-sm gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <strong className="text-monitor-text font-bold">已啟用去識別化隱私防護</strong>
-            </div>
-            <p className="text-[10px] text-monitor-dim mt-1">
-              本裝置與雲端試算表皆不會記錄任何姓名、年齡、性別或診斷等個人特徵。
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowSettingsModal(true)}
-            className="p-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-monitor-dim hover:text-monitor-text rounded-lg transition"
-            title="系統設定或重設系統"
-          >
-            <Settings size={14} />
-          </button>
-        </div>
 
         {/* 頁籤導覽按鈕 */}
         <div className="flex bg-slate-200/50 p-0.5 rounded-lg border border-slate-200 shadow-inner">
@@ -1698,62 +1688,6 @@ function App() {
           </div>
         )}
 
-        {/* 3. 事件與排泄記錄區 */}
-        <section className="bg-monitor-card border border-monitor-border rounded-xl p-4 space-y-3 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
-            <Clock size={12} className="text-monitor-cyan" /> 排泄與用藥事件快速記錄
-          </h2>
-          
-          <div className="grid grid-cols-2 gap-3">
-            {/* 尿量記錄按鈕 */}
-            <button
-              id="log-urine-btn"
-              onClick={() => setShowUrineModal(true)}
-              className="flex items-center justify-between px-3 py-3.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-monitor-cyan/40 transition active:bg-slate-100 text-left shadow-sm"
-            >
-              <div className="flex items-center gap-2">
-                <Droplet size={15} className="text-monitor-cyan fill-monitor-cyan/10" />
-                <div>
-                  <div className="text-xs font-bold text-monitor-text">尿量記錄</div>
-                  <div className="text-[9px] text-monitor-dim">c.c.與顏色選單</div>
-                </div>
-              </div>
-              <Plus size={14} className="text-monitor-dim" />
-            </button>
-
-            {/* 給藥記錄按鈕 */}
-            <button
-              id="log-med-btn"
-              onClick={() => setShowMedModal(true)}
-              className="flex items-center justify-between px-3 py-3.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-monitor-purple/40 transition active:bg-slate-100 text-left shadow-sm"
-            >
-              <div className="flex items-center gap-2">
-                <Pill size={15} className="text-monitor-purple" />
-                <div>
-                  <div className="text-xs font-bold text-monitor-text">疼痛與給藥</div>
-                  <div className="text-[9px] text-monitor-dim">突發痛止痛處置</div>
-                </div>
-              </div>
-              <Plus size={14} className="text-monitor-dim" />
-            </button>
-
-            {/* 照護需求記錄按鈕 */}
-            <button
-              id="log-care-request-btn"
-              onClick={() => setShowCareRequestModal(true)}
-              className="flex items-center justify-between px-3 py-3.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-400/40 transition active:bg-slate-100 text-left shadow-sm col-span-2"
-            >
-              <div className="flex items-center gap-2">
-                <HandHeart size={15} className="text-orange-500" />
-                <div>
-                  <div className="text-xs font-bold text-monitor-text">照護需求</div>
-                  <div className="text-[9px] text-monitor-dim">喝水、翻身、調床墊等日常需求</div>
-                </div>
-              </div>
-              <Plus size={14} className="text-monitor-dim" />
-            </button>
-          </div>
-        </section>
 
         {/* 4. 交班報告產生器 */}
         <section className="bg-monitor-card border border-monitor-border rounded-xl p-4 space-y-3 shadow-sm">
@@ -1815,7 +1749,7 @@ function App() {
         <section className="space-y-2">
           <div className="flex justify-between items-center px-1">
             <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim">
-              臨床監控歷史紀錄流 (最新優先)
+              臨床監控歷史紀錄流
             </h2>
           </div>
 
