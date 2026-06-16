@@ -845,46 +845,54 @@ function App() {
                   </text>
                 )}
                 
-                {/* 增加觸控/懸停感應區 */}
-                <circle
-                  cx={p.x}
-                  cy={p.y}
-                  r="12"
-                  fill="transparent"
-                  className="cursor-pointer"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                  onMouseEnter={() => {
-                    const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
-                                    p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                    setActiveTooltip({
-                      chartId: key,
-                      index: i,
-                      x: p.x,
-                      y: p.y,
-                      time: timeStr,
-                      value: `${label.split(' ')[0]}: ${p.val} ${unit}`
-                    });
-                  }}
-                  onMouseLeave={() => setActiveTooltip(null)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const isSame = activeTooltip && activeTooltip.chartId === key && activeTooltip.index === i;
-                    if (isSame) {
-                      setActiveTooltip(null);
-                    } else {
-                      const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
-                                      p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                      setActiveTooltip({
-                        chartId: key,
-                        index: i,
-                        x: p.x,
-                        y: p.y,
-                        time: timeStr,
-                        value: `${label.split(' ')[0]}: ${p.val} ${unit}`
-                      });
-                    }
-                  }}
-                />
+                {/* 增加觸控/懸停感應區 (全高垂直切片，無死角) */}
+                {(() => {
+                  const leftX = i === 0 ? 0 : (points[i - 1].x + p.x) / 2;
+                  const rightX = i === points.length - 1 ? width : (p.x + points[i + 1].x) / 2;
+                  const sliceWidth = rightX - leftX;
+                  return (
+                    <rect
+                      x={leftX}
+                      y={0}
+                      width={sliceWidth}
+                      height={height}
+                      fill="transparent"
+                      className="cursor-pointer"
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                      onMouseEnter={() => {
+                        const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                        p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                        setActiveTooltip({
+                          chartId: key,
+                          index: i,
+                          x: p.x,
+                          y: p.y,
+                          time: timeStr,
+                          value: `${label.split(' ')[0]}: ${p.val} ${unit}`
+                        });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const isSame = activeTooltip && activeTooltip.chartId === key && activeTooltip.index === i;
+                        if (isSame) {
+                          setActiveTooltip(null);
+                        } else {
+                          const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                          p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                          setActiveTooltip({
+                            chartId: key,
+                            index: i,
+                            x: p.x,
+                            y: p.y,
+                            time: timeStr,
+                            value: `${label.split(' ')[0]}: ${p.val} ${unit}`
+                          });
+                        }
+                      }}
+                    />
+                  );
+                })()}
               </g>
             ))}
 
@@ -1115,46 +1123,54 @@ function App() {
                   <text x={p.x} y={p.yDbp + 9} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
                 )}
 
-                {/* 增加觸控/懸停感應區 */}
-                <circle
-                  cx={p.x}
-                  cy={p.yMap}
-                  r="14"
-                  fill="transparent"
-                  className="cursor-pointer"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                  onMouseEnter={() => {
-                    const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
-                                    p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                    setActiveTooltip({
-                      chartId: 'bp',
-                      index: i,
-                      x: p.x,
-                      y: p.yMap,
-                      time: timeStr,
-                      value: `血壓: ${p.sbp}/${p.dbp} (MAP: ${p.map})`
-                    });
-                  }}
-                  onMouseLeave={() => setActiveTooltip(null)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const isSame = activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i;
-                    if (isSame) {
-                      setActiveTooltip(null);
-                    } else {
-                      const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
-                                      p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                      setActiveTooltip({
-                        chartId: 'bp',
-                        index: i,
-                        x: p.x,
-                        y: p.yMap,
-                        time: timeStr,
-                        value: `血壓: ${p.sbp}/${p.dbp} (MAP: ${p.map})`
-                      });
-                    }
-                  }}
-                />
+                {/* 增加觸控/懸停感應區 (全高垂直切片，無死角) */}
+                {(() => {
+                  const leftX = i === 0 ? 0 : (points[i - 1].x + p.x) / 2;
+                  const rightX = i === points.length - 1 ? width : (p.x + points[i + 1].x) / 2;
+                  const sliceWidth = rightX - leftX;
+                  return (
+                    <rect
+                      x={leftX}
+                      y={0}
+                      width={sliceWidth}
+                      height={height}
+                      fill="transparent"
+                      className="cursor-pointer"
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                      onMouseEnter={() => {
+                        const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                        p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                        setActiveTooltip({
+                          chartId: 'bp',
+                          index: i,
+                          x: p.x,
+                          y: p.yMap,
+                          time: timeStr,
+                          value: `血壓: ${p.sbp}/${p.dbp} (MAP: ${p.map})`
+                        });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const isSame = activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i;
+                        if (isSame) {
+                          setActiveTooltip(null);
+                        } else {
+                          const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                          p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                          setActiveTooltip({
+                            chartId: 'bp',
+                            index: i,
+                            x: p.x,
+                            y: p.yMap,
+                            time: timeStr,
+                            value: `血壓: ${p.sbp}/${p.dbp} (MAP: ${p.map})`
+                          });
+                        }
+                      }}
+                    />
+                  );
+                })()}
               </g>
             ))}
 
@@ -1409,49 +1425,56 @@ function App() {
                     </text>
                   )}
                   
-                  {/* 增加觸控/懸停感應區 */}
-                  <rect
-                    x={p.x - (barWidth + 12) / 2}
-                    y={paddingY - 6}
-                    width={barWidth + 12}
-                    height={height - paddingY + 4}
-                    fill="transparent"
-                    className="cursor-pointer"
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                    onMouseEnter={() => {
-                      const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
-                                      p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                      setActiveTooltip({
-                        chartId: 'urine',
-                        index: i,
-                        x: p.x,
-                        y: p.y - 4,
-                        time: timeStr,
-                        singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
-                        avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
-                      });
-                    }}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const isSame = activeTooltip && activeTooltip.chartId === 'urine' && activeTooltip.index === i;
-                      if (isSame) {
-                        setActiveTooltip(null);
-                      } else {
-                        const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
-                                        p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                        setActiveTooltip({
-                          chartId: 'urine',
-                          index: i,
-                          x: p.x,
-                          y: p.y - 4,
-                          time: timeStr,
-                          singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
-                          avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
-                        });
-                      }
-                    }}
-                  />
+                  {/* 增加觸控/懸停感應區 (全高垂直切片，無死角) */}
+                  {(() => {
+                    const leftX = i === 0 ? 0 : (points[i - 1].x + p.x) / 2;
+                    const rightX = i === points.length - 1 ? width : (p.x + points[i + 1].x) / 2;
+                    const sliceWidth = rightX - leftX;
+                    return (
+                      <rect
+                        x={leftX}
+                        y={0}
+                        width={sliceWidth}
+                        height={height}
+                        fill="transparent"
+                        className="cursor-pointer"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                        onMouseEnter={() => {
+                          const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                          p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                          setActiveTooltip({
+                            chartId: 'urine',
+                            index: i,
+                            x: p.x,
+                            y: p.y - 4,
+                            time: timeStr,
+                            singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
+                            avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
+                          });
+                        }}
+                        onMouseLeave={() => setActiveTooltip(null)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const isSame = activeTooltip && activeTooltip.chartId === 'urine' && activeTooltip.index === i;
+                          if (isSame) {
+                            setActiveTooltip(null);
+                          } else {
+                            const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
+                                            p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                            setActiveTooltip({
+                              chartId: 'urine',
+                              index: i,
+                              x: p.x,
+                              y: p.y - 4,
+                              time: timeStr,
+                              singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
+                              avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
+                            });
+                          }
+                        }}
+                      />
+                    );
+                  })()}
                 </g>
               );
             })}
