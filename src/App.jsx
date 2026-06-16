@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Heart, 
   Activity, 
@@ -18,7 +18,11 @@ import {
   Edit2,
   Lock,
   Unlock,
-  RefreshCw
+  RefreshCw,
+  HandHeart,
+  MessageSquarePlus,
+  CheckCircle2,
+  ChevronRight
 } from 'lucide-react';
 
 // 原生位元運算加密與解密工具函數 (支援 UTF-8 中文字元，防止 localStorage 直接外洩個資)
@@ -459,10 +463,18 @@ function App() {
   const [showUrineModal, setShowUrineModal] = useState(false);
   const [showMedModal, setShowMedModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showCareRequestModal, setShowCareRequestModal] = useState(false);
   const [reportDuration, setReportDuration] = useState(24); // 預設 24 小時區間
   const [copySuccess, setCopySuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('vitals'); // 'vitals' or 'trends'
   
+  // 即時時鐘 (每秒更新)
+  const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // 表單欄位狀態
   const [systolic, setSystolic] = useState(120);
   const [diastolic, setDiastolic] = useState(80);
@@ -475,6 +487,7 @@ function App() {
   const [medName, setMedName] = useState('一般止痛藥 (如普拿疼)');
   const [customMed, setCustomMed] = useState('');
   const [noteText, setNoteText] = useState('');
+  const [careRequestText, setCareRequestText] = useState('');
 
   // 當收縮壓或舒張壓改變時，自動重新計算平均壓 (MAP)
   useEffect(() => {
@@ -1112,6 +1125,43 @@ function App() {
     uploadLogToCloud(newLog);
   };
 
+  // 儲存照護需求事件
+  const handleAddCareRequest = (text, category = 'other') => {
+    if (!text || !text.trim()) return;
+    const newLog = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      type: 'event',
+      eventType: 'care_request',
+      requestCategory: category,
+      requestText: text.trim(),
+      fulfilled: false,
+      fulfilledAt: null,
+      notes: noteText.trim() || undefined
+    };
+    setLogs([newLog, ...logs]);
+    setNoteText('');
+    setCareRequestText('');
+    setShowCareRequestModal(false);
+    uploadLogToCloud(newLog);
+  };
+
+  // 標記照護需求為已完成
+  const handleFulfillRequest = (id) => {
+    const updatedLogs = logs.map(l => {
+      if (l.id === id && l.eventType === 'care_request' && !l.fulfilled) {
+        return { ...l, fulfilled: true, fulfilledAt: new Date().toISOString() };
+      }
+      return l;
+    });
+    setLogs(updatedLogs);
+    // 同步已完成狀態至雲端（透過更新整筆記錄）
+    const updatedLog = updatedLogs.find(l => l.id === id);
+    if (updatedLog) {
+      uploadLogToCloud(updatedLog);
+    }
+  };
+
   const deleteLog = (id) => {
     if (window.confirm('確定要刪除此筆交班紀錄嗎？')) {
       setLogs(logs.filter(l => l.id !== id));
@@ -1210,15 +1260,40 @@ function App() {
           return `[${timeStr}] 💧 尿量記錄: ${l.volumeCc}cc, 顏色: ${colorName}${l.notes ? ` - "${l.notes}"` : ''}`;
         } else if (l.eventType === 'medication') {
           return `[${timeStr}] 💊 給藥處置: ${l.medicationName}${l.notes ? ` - "${l.notes}"` : ''}`;
+        } else if (l.eventType === 'care_request') {
+          const status = l.fulfilled ? '✅ 已處理' : '⏳ 待處理';
+          return `[${timeStr}] 🤲 照護需求: ${l.requestText} (${status})${l.notes ? ` - "${l.notes}"` : ''}`;
         }
       }
       return null;
     }).filter(Boolean);
 
+    // 統計照護需求
+    const careRequests = chronoLogs.filter(l => l.eventType === 'care_request');
+    const fulfilledCount = careRequests.filter(l => l.fulfilled).length;
+    const pendingCount = careRequests.length - fulfilledCount;
+    
+    // 按類別統計
+    const categoryLabels = { nutrition: '飲食', position: '姿勢', environment: '環境', daily_care: '日常照護', other: '其他' };
+    const categoryCounts = {};
+    careRequests.forEach(l => {
+      const cat = categoryLabels[l.requestCategory] || '其他';
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    });
+
     const dateStr = now.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
     let report = `🏥 照護交班報告 (${dateStr} - ${reportDuration}小時內):\n\n`;
     report += `📈 最新生理 telemetry 指標:\n`;
     report += `- 心率 (HR): ${hrStr}\n- 血氧 (SpO2): ${spo2Str}\n- 呼吸 (RR): ${rrStr}\n- 血壓 (BP): ${bpStr} (平均壓 MAP: ${mapStr})\n\n`;
+    
+    // 照護需求統計段落
+    if (careRequests.length > 0) {
+      report += `🤲 照護需求統計 (共 ${careRequests.length} 次):\n`;
+      report += `- 已處理: ${fulfilledCount} 次 | 待處理: ${pendingCount} 次\n`;
+      const catStr = Object.entries(categoryCounts).map(([k, v]) => `${k} ${v} 次`).join('、');
+      report += `- 類別分佈: ${catStr}\n\n`;
+    }
+
     report += `⏱️ 臨床事件與用藥時間線:\n`;
     if (timeline.length > 0) {
       report += timeline.map(line => `• ${line}`).join('\n');
@@ -1403,7 +1478,7 @@ function App() {
           
           <div className="text-right pl-1">
             <div className="text-xs font-mono font-bold text-monitor-text">
-              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
             </div>
             <div className="text-[8px] text-monitor-green font-bold uppercase tracking-wider">生理指標監控中</div>
           </div>
@@ -1597,6 +1672,53 @@ function App() {
           </div>
         )}
 
+        {/* 待處理照護需求區塊 */}
+        {(() => {
+          const pendingRequests = logs.filter(l => l.eventType === 'care_request' && !l.fulfilled);
+          if (pendingRequests.length === 0) return null;
+          return (
+            <section className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 space-y-3 shadow-sm">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-orange-700 flex items-center gap-1.5">
+                  <HandHeart size={14} className="text-orange-500" /> 待處理照護需求
+                  <span className="bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-1 animate-pulse">
+                    {pendingRequests.length}
+                  </span>
+                </h2>
+              </div>
+              <div className="space-y-2">
+                {pendingRequests.slice(0, 5).map((req) => {
+                  const timeStr = new Date(req.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                  const categoryIcons = { nutrition: '🥤', position: '🛏️', environment: '🌡️', daily_care: '🧹', other: '📝' };
+                  const icon = categoryIcons[req.requestCategory] || '📝';
+                  return (
+                    <div key={req.id} className="flex items-center justify-between bg-white/80 border border-orange-100 rounded-lg px-3 py-2.5 shadow-sm">
+                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                        <span className="text-base flex-shrink-0">{icon}</span>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-monitor-text truncate">{req.requestText}</div>
+                          <div className="text-[9px] text-monitor-dim font-mono">{timeStr} 提出</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleFulfillRequest(req.id)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 active:scale-95 transition flex-shrink-0"
+                      >
+                        <CheckCircle2 size={12} /> 已完成
+                      </button>
+                    </div>
+                  );
+                })}
+                {pendingRequests.length > 5 && (
+                  <div className="text-center text-[10px] text-orange-500 font-bold py-1">
+                    還有 {pendingRequests.length - 5} 項待處理需求
+                  </div>
+                )}
+              </div>
+            </section>
+          );
+        })()}
+
         {/* 3. 事件與排泄記錄區 */}
         <section className="bg-monitor-card border border-monitor-border rounded-xl p-4 space-y-3 shadow-sm">
           <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
@@ -1631,6 +1753,22 @@ function App() {
                 <div>
                   <div className="text-xs font-bold text-monitor-text">疼痛與給藥</div>
                   <div className="text-[9px] text-monitor-dim">突發痛止痛處置</div>
+                </div>
+              </div>
+              <Plus size={14} className="text-monitor-dim" />
+            </button>
+
+            {/* 照護需求記錄按鈕 */}
+            <button
+              id="log-care-request-btn"
+              onClick={() => setShowCareRequestModal(true)}
+              className="flex items-center justify-between px-3 py-3.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-400/40 transition active:bg-slate-100 text-left shadow-sm col-span-2"
+            >
+              <div className="flex items-center gap-2">
+                <HandHeart size={15} className="text-orange-500" />
+                <div>
+                  <div className="text-xs font-bold text-monitor-text">照護需求</div>
+                  <div className="text-[9px] text-monitor-dim">喝水、翻身、調床墊等日常需求</div>
                 </div>
               </div>
               <Plus size={14} className="text-monitor-dim" />
@@ -1719,6 +1857,10 @@ function App() {
                         <span className="bg-emerald-50 border border-emerald-100 text-monitor-green px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
                           生理數據
                         </span>
+                      ) : log.eventType === 'care_request' ? (
+                        <span className="bg-orange-50 border border-orange-100 text-orange-600 px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                          照護需求
+                        </span>
                       ) : (
                         <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
                           {log.eventType === 'urine' ? '排泄記錄' : '給藥處置'}
@@ -1747,6 +1889,22 @@ function App() {
                                 {log.color === 'bright_red' ? '鮮紅肉眼血尿' : log.color === 'tea' ? '深茶色' : '清澈淡黃'}
                               </strong>
                             </span>
+                          </div>
+                        ) : log.eventType === 'care_request' ? (
+                          <div className="flex items-center gap-2">
+                            <span>照護需求: <strong className="text-orange-600">{log.requestText}</strong></span>
+                            {log.fulfilled ? (
+                              <span className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5">
+                                <CheckCircle2 size={10} /> 已完成
+                              </span>
+                            ) : (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleFulfillRequest(log.id); }}
+                                className="text-[9px] bg-orange-50 border border-orange-200 text-orange-600 px-1.5 py-0.5 rounded font-bold hover:bg-orange-100 transition flex items-center gap-0.5"
+                              >
+                                ⏳ 待處理 → 點擊完成
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <div>
@@ -1779,27 +1937,39 @@ function App() {
       </main>
 
       {/* 底部固定操作欄 (Sticky Bottom Action Bar) */}
-      <footer className="bg-white border-t border-monitor-border p-3.5 flex gap-2.5 z-30 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      <footer className="bg-white border-t border-monitor-border p-3 flex gap-2 z-30 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <button
           type="button"
           onClick={openVitalsModalWithLatest}
-          className="flex-1 py-3 bg-monitor-green text-white font-extrabold rounded-xl hover:bg-emerald-600 active:scale-95 transition shadow-sm flex items-center justify-center gap-1.5 text-xs tracking-wider"
+          className="flex-1 py-3 bg-monitor-green text-white font-extrabold rounded-xl hover:bg-emerald-600 active:scale-95 transition shadow-sm flex items-center justify-center gap-1 text-xs tracking-wider"
         >
-          <Plus size={16} /> 登錄生理數據
+          <Plus size={14} /> 生理數據
         </button>
         <button
           type="button"
           onClick={() => setShowUrineModal(true)}
-          className="py-3 px-4 bg-cyan-50 border border-cyan-100 text-monitor-cyan font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+          className="py-3 px-3 bg-cyan-50 border border-cyan-100 text-monitor-cyan font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
-          <Droplet size={14} className="fill-monitor-cyan/10" /> 尿量
+          <Droplet size={13} className="fill-monitor-cyan/10" /> 尿量
         </button>
         <button
           type="button"
           onClick={() => setShowMedModal(true)}
-          className="py-3 px-4 bg-purple-50 border border-purple-100 text-monitor-purple font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+          className="py-3 px-3 bg-purple-50 border border-purple-100 text-monitor-purple font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
-          <Pill size={14} /> 用藥
+          <Pill size={13} /> 用藥
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowCareRequestModal(true)}
+          className="py-3 px-3 bg-orange-50 border border-orange-100 text-orange-600 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs relative"
+        >
+          <HandHeart size={13} /> 需求
+          {logs.filter(l => l.eventType === 'care_request' && !l.fulfilled).length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+              {logs.filter(l => l.eventType === 'care_request' && !l.fulfilled).length}
+            </span>
+          )}
         </button>
       </footer>
 
@@ -1807,8 +1977,8 @@ function App() {
 
       {/* 生理數據錄入對話框 */}
       {showVitalsModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 transition-opacity">
-          <div className="bg-monitor-card border-t-4 border-monitor-green rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 animate-fade-in" onClick={() => setShowVitalsModal(false)}>
+          <div className="bg-monitor-card border-t-4 border-monitor-green rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             
             <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
               <h3 className="text-sm font-bold text-monitor-green uppercase tracking-wider flex items-center gap-1.5">
@@ -2086,8 +2256,8 @@ function App() {
 
       {/* 尿量記錄對話框 */}
       {showUrineModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 transition-opacity">
-          <div className="bg-monitor-card border-t-4 border-monitor-cyan rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 animate-fade-in" onClick={() => setShowUrineModal(false)}>
+          <div className="bg-monitor-card border-t-4 border-monitor-cyan rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             
             <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
               <h3 className="text-sm font-bold text-monitor-cyan uppercase tracking-wider flex items-center gap-1.5">
@@ -2219,8 +2389,8 @@ function App() {
 
       {/* 用藥/止痛處置記錄對話框 */}
       {showMedModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 transition-opacity">
-          <div className="bg-monitor-card border-t-4 border-monitor-purple rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 animate-fade-in" onClick={() => setShowMedModal(false)}>
+          <div className="bg-monitor-card border-t-4 border-monitor-purple rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             
             <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
               <h3 className="text-sm font-bold text-monitor-purple uppercase tracking-wider flex items-center gap-1.5">
@@ -2297,6 +2467,148 @@ function App() {
                   placeholder="例如：用藥後痛評 4/10、已入睡、無明顯副作用..."
                   className="w-full py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-monitor-purple"
                 />
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 照護需求快速記錄對話框 */}
+      {showCareRequestModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 animate-fade-in" onClick={() => setShowCareRequestModal(false)}>
+          <div className="bg-monitor-card border-t-4 border-orange-400 rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+            
+            <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
+              <h3 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-1.5">
+                <HandHeart size={16} /> 登錄照護需求
+              </h3>
+              <button 
+                onClick={() => setShowCareRequestModal(false)}
+                className="text-monitor-dim hover:text-monitor-text"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              
+              {/* 🥤 飲食需求 */}
+              <div className="space-y-2">
+                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">🥤 飲食需求</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { text: '想喝水', cat: 'nutrition' },
+                    { text: '沾水潤唇', cat: 'nutrition' },
+                    { text: '想喝果汁', cat: 'nutrition' },
+                    { text: '想吃東西', cat: 'nutrition' }
+                  ].map((item) => (
+                    <button
+                      key={item.text}
+                      onClick={() => handleAddCareRequest(item.text, item.cat)}
+                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-300 text-left active:bg-orange-50 transition shadow-sm"
+                    >
+                      <span className="text-xs font-bold text-monitor-text">{item.text}</span>
+                      <Plus size={12} className="text-orange-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 🛏️ 姿勢調整 */}
+              <div className="space-y-2">
+                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">🛏️ 姿勢調整</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { text: '翻身', cat: 'position' },
+                    { text: '轉台', cat: 'position' },
+                    { text: '調高床墊', cat: 'position' },
+                    { text: '調低床墊', cat: 'position' },
+                    { text: '抬高床頭', cat: 'position' },
+                    { text: '放下床頭', cat: 'position' }
+                  ].map((item) => (
+                    <button
+                      key={item.text}
+                      onClick={() => handleAddCareRequest(item.text, item.cat)}
+                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-300 text-left active:bg-orange-50 transition shadow-sm"
+                    >
+                      <span className="text-xs font-bold text-monitor-text">{item.text}</span>
+                      <Plus size={12} className="text-orange-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 🌡️ 環境舒適 */}
+              <div className="space-y-2">
+                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">🌡️ 環境舒適</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { text: '開燈', cat: 'environment' },
+                    { text: '關燈', cat: 'environment' },
+                    { text: '調高空調', cat: 'environment' },
+                    { text: '調低空調', cat: 'environment' },
+                    { text: '需要毛毯', cat: 'environment' },
+                    { text: '拿走毛毯', cat: 'environment' }
+                  ].map((item) => (
+                    <button
+                      key={item.text}
+                      onClick={() => handleAddCareRequest(item.text, item.cat)}
+                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-300 text-left active:bg-orange-50 transition shadow-sm"
+                    >
+                      <span className="text-xs font-bold text-monitor-text">{item.text}</span>
+                      <Plus size={12} className="text-orange-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 🧹 日常照護 */}
+              <div className="space-y-2">
+                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">🧹 日常照護</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { text: '擦澡', cat: 'daily_care' },
+                    { text: '換尿布/看護墊', cat: 'daily_care' },
+                    { text: '口腔清潔', cat: 'daily_care' },
+                    { text: '更換衣物', cat: 'daily_care' }
+                  ].map((item) => (
+                    <button
+                      key={item.text}
+                      onClick={() => handleAddCareRequest(item.text, item.cat)}
+                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-300 text-left active:bg-orange-50 transition shadow-sm"
+                    >
+                      <span className="text-xs font-bold text-monitor-text">{item.text}</span>
+                      <Plus size={12} className="text-orange-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 📝 自由輸入 */}
+              <div className="border-t border-monitor-border/60 pt-3 space-y-2">
+                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">📝 其他需求（自由輸入）</span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="例如：想聽音樂、需要枕頭、想看電視..."
+                    value={careRequestText}
+                    onChange={(e) => setCareRequestText(e.target.value)}
+                    className="flex-1 py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-orange-400"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && careRequestText.trim()) {
+                        handleAddCareRequest(careRequestText, 'other');
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => handleAddCareRequest(careRequestText, 'other')}
+                    disabled={!careRequestText.trim()}
+                    className="px-4 bg-orange-500 hover:bg-orange-600 text-white font-bold uppercase rounded-lg disabled:opacity-50 transition"
+                  >
+                    儲存
+                  </button>
+                </div>
               </div>
 
             </div>
