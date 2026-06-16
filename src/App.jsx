@@ -21,7 +21,6 @@ import {
   RefreshCw,
   HandHeart,
   MessageSquarePlus,
-  CheckCircle2,
   ChevronRight
 } from 'lucide-react';
 
@@ -1135,8 +1134,6 @@ function App() {
       eventType: 'care_request',
       requestCategory: category,
       requestText: text.trim(),
-      fulfilled: false,
-      fulfilledAt: null,
       notes: noteText.trim() || undefined
     };
     setLogs([newLog, ...logs]);
@@ -1144,22 +1141,6 @@ function App() {
     setCareRequestText('');
     setShowCareRequestModal(false);
     uploadLogToCloud(newLog);
-  };
-
-  // 標記照護需求為已完成
-  const handleFulfillRequest = (id) => {
-    const updatedLogs = logs.map(l => {
-      if (l.id === id && l.eventType === 'care_request' && !l.fulfilled) {
-        return { ...l, fulfilled: true, fulfilledAt: new Date().toISOString() };
-      }
-      return l;
-    });
-    setLogs(updatedLogs);
-    // 同步已完成狀態至雲端（透過更新整筆記錄）
-    const updatedLog = updatedLogs.find(l => l.id === id);
-    if (updatedLog) {
-      uploadLogToCloud(updatedLog);
-    }
   };
 
   const deleteLog = (id) => {
@@ -1261,8 +1242,7 @@ function App() {
         } else if (l.eventType === 'medication') {
           return `[${timeStr}] 💊 給藥處置: ${l.medicationName}${l.notes ? ` - "${l.notes}"` : ''}`;
         } else if (l.eventType === 'care_request') {
-          const status = l.fulfilled ? '✅ 已處理' : '⏳ 待處理';
-          return `[${timeStr}] 🤲 照護需求: ${l.requestText} (${status})${l.notes ? ` - "${l.notes}"` : ''}`;
+          return `[${timeStr}] 🤲 照護需求: ${l.requestText}${l.notes ? ` - "${l.notes}"` : ''}`;
         }
       }
       return null;
@@ -1270,8 +1250,6 @@ function App() {
 
     // 統計照護需求
     const careRequests = chronoLogs.filter(l => l.eventType === 'care_request');
-    const fulfilledCount = careRequests.filter(l => l.fulfilled).length;
-    const pendingCount = careRequests.length - fulfilledCount;
     
     // 按類別統計
     const categoryLabels = { nutrition: '飲食', position: '姿勢', environment: '環境', daily_care: '日常照護', other: '其他' };
@@ -1289,7 +1267,6 @@ function App() {
     // 照護需求統計段落
     if (careRequests.length > 0) {
       report += `🤲 照護需求統計 (共 ${careRequests.length} 次):\n`;
-      report += `- 已處理: ${fulfilledCount} 次 | 待處理: ${pendingCount} 次\n`;
       const catStr = Object.entries(categoryCounts).map(([k, v]) => `${k} ${v} 次`).join('、');
       report += `- 類別分佈: ${catStr}\n\n`;
     }
@@ -1672,53 +1649,6 @@ function App() {
           </div>
         )}
 
-        {/* 待處理照護需求區塊 */}
-        {(() => {
-          const pendingRequests = logs.filter(l => l.eventType === 'care_request' && !l.fulfilled);
-          if (pendingRequests.length === 0) return null;
-          return (
-            <section className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 space-y-3 shadow-sm">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-orange-700 flex items-center gap-1.5">
-                  <HandHeart size={14} className="text-orange-500" /> 待處理照護需求
-                  <span className="bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-1 animate-pulse">
-                    {pendingRequests.length}
-                  </span>
-                </h2>
-              </div>
-              <div className="space-y-2">
-                {pendingRequests.slice(0, 5).map((req) => {
-                  const timeStr = new Date(req.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                  const categoryIcons = { nutrition: '🥤', position: '🛏️', environment: '🌡️', daily_care: '🧹', other: '📝' };
-                  const icon = categoryIcons[req.requestCategory] || '📝';
-                  return (
-                    <div key={req.id} className="flex items-center justify-between bg-white/80 border border-orange-100 rounded-lg px-3 py-2.5 shadow-sm">
-                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                        <span className="text-base flex-shrink-0">{icon}</span>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-monitor-text truncate">{req.requestText}</div>
-                          <div className="text-[9px] text-monitor-dim font-mono">{timeStr} 提出</div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleFulfillRequest(req.id)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 active:scale-95 transition flex-shrink-0"
-                      >
-                        <CheckCircle2 size={12} /> 已完成
-                      </button>
-                    </div>
-                  );
-                })}
-                {pendingRequests.length > 5 && (
-                  <div className="text-center text-[10px] text-orange-500 font-bold py-1">
-                    還有 {pendingRequests.length - 5} 項待處理需求
-                  </div>
-                )}
-              </div>
-            </section>
-          );
-        })()}
-
         {/* 3. 事件與排泄記錄區 */}
         <section className="bg-monitor-card border border-monitor-border rounded-xl p-4 space-y-3 shadow-sm">
           <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
@@ -1891,20 +1821,8 @@ function App() {
                             </span>
                           </div>
                         ) : log.eventType === 'care_request' ? (
-                          <div className="flex items-center gap-2">
-                            <span>照護需求: <strong className="text-orange-600">{log.requestText}</strong></span>
-                            {log.fulfilled ? (
-                              <span className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5">
-                                <CheckCircle2 size={10} /> 已完成
-                              </span>
-                            ) : (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleFulfillRequest(log.id); }}
-                                className="text-[9px] bg-orange-50 border border-orange-200 text-orange-600 px-1.5 py-0.5 rounded font-bold hover:bg-orange-100 transition flex items-center gap-0.5"
-                              >
-                                ⏳ 待處理 → 點擊完成
-                              </button>
-                            )}
+                          <div>
+                            照護需求: <strong className="text-orange-600">{log.requestText}</strong>
                           </div>
                         ) : (
                           <div>
@@ -1962,14 +1880,9 @@ function App() {
         <button
           type="button"
           onClick={() => setShowCareRequestModal(true)}
-          className="py-3 px-3 bg-orange-50 border border-orange-100 text-orange-600 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs relative"
+          className="py-3 px-3 bg-orange-50 border border-orange-100 text-orange-600 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
           <HandHeart size={13} /> 需求
-          {logs.filter(l => l.eventType === 'care_request' && !l.fulfilled).length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
-              {logs.filter(l => l.eventType === 'care_request' && !l.fulfilled).length}
-            </span>
-          )}
         </button>
       </footer>
 
