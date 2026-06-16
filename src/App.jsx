@@ -154,27 +154,27 @@ function PinScreen({ onUnlock, isSetup }) {
   }, [pin, step, tempPin]);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between p-6 max-w-md mx-auto border-x border-slate-800 font-sans">
+    <div className="min-h-screen bg-monitor-bg text-monitor-text flex flex-col justify-between p-6 max-w-md mx-auto border-x border-monitor-border font-sans">
       <div className="flex-1 flex flex-col justify-center items-center space-y-8 my-auto animate-pulse-slow">
         {/* Logo 和標題 */}
         <div className="flex flex-col items-center space-y-3">
-          <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-rose-500/5 border border-slate-200/50 overflow-hidden">
+          <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-md border border-monitor-border overflow-hidden">
             <img src="/logo.png" alt="CareFlow Logo" className="w-full h-full object-cover" />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-extrabold tracking-widest uppercase text-rose-400">CareFlow 密碼鎖</h1>
-            <p className="text-xs text-slate-400 mt-1">健康與生理數值紀錄系統</p>
+            <h1 className="text-xl font-extrabold tracking-widest uppercase text-rose-600">CareFlow 密碼鎖</h1>
+            <p className="text-xs text-monitor-dim mt-1">健康與生理數值紀錄系統</p>
           </div>
         </div>
 
         {/* 提示訊息 */}
         <div className="text-center space-y-1 px-4">
-          <h2 className="text-base font-bold">
+          <h2 className="text-base font-bold text-monitor-text">
             {step === 'unlock' && '請輸入 4 位數密碼解鎖'}
             {step === 'enter' && '建立家庭專屬密碼鎖'}
             {step === 'confirm' && '請再次輸入以確認密碼'}
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-monitor-dim">
             {step === 'unlock' && '保護您的個人隱私與生理紀錄數據'}
             {step === 'enter' && '請輸入一個 4 位數 PIN 碼'}
             {step === 'confirm' && '確認您的家庭防護新密碼'}
@@ -186,7 +186,7 @@ function PinScreen({ onUnlock, isSetup }) {
           {[0, 1, 2, 3].map((index) => (
             <div
               key={index}
-              className={`w-4 h-4 rounded-full border-2 border-slate-700 transition-all duration-150 ${
+              className={`w-4 h-4 rounded-full border-2 border-slate-300 transition-all duration-150 ${
                 index < pin.length ? 'bg-emerald-400 border-emerald-400 scale-110 shadow-md shadow-emerald-400/30' : 'bg-transparent'
               }`}
             />
@@ -195,7 +195,7 @@ function PinScreen({ onUnlock, isSetup }) {
 
         {/* 錯誤訊息 */}
         {error && (
-          <div className="text-xs text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 px-4 py-2 rounded-lg flex items-center gap-1.5 animate-bounce">
+          <div className="text-xs text-rose-600 font-bold bg-rose-50 border border-rose-200 px-4 py-2 rounded-lg flex items-center gap-1.5 animate-bounce">
             <AlertCircle size={14} /> {error}
           </div>
         )}
@@ -209,7 +209,7 @@ function PinScreen({ onUnlock, isSetup }) {
               key={num}
               type="button"
               onClick={() => handleKeyPress(num.toString())}
-              className="h-14 bg-slate-800/60 hover:bg-slate-700/60 active:bg-slate-600/60 border border-slate-800 text-xl font-semibold rounded-xl flex items-center justify-center transition focus:outline-none"
+              className="h-14 bg-white hover:bg-slate-50 active:bg-slate-100 border border-monitor-border text-xl font-semibold rounded-xl flex items-center justify-center shadow-sm text-monitor-text transition focus:outline-none"
             >
               {num}
             </button>
@@ -223,21 +223,21 @@ function PinScreen({ onUnlock, isSetup }) {
                 window.location.reload();
               }
             }}
-            className="text-[10px] text-slate-500 hover:text-slate-400 font-bold active:scale-95 transition flex items-center justify-center px-1"
+            className="text-[10px] text-monitor-dim hover:text-monitor-text font-bold active:scale-95 transition flex items-center justify-center px-1"
           >
             重設系統
           </button>
           <button
             type="button"
             onClick={() => handleKeyPress('0')}
-            className="h-14 bg-slate-800/60 hover:bg-slate-700/60 active:bg-slate-600/60 border border-slate-800 text-xl font-semibold rounded-xl flex items-center justify-center transition focus:outline-none"
+            className="h-14 bg-white hover:bg-slate-50 active:bg-slate-100 border border-monitor-border text-xl font-semibold rounded-xl flex items-center justify-center shadow-sm text-monitor-text transition focus:outline-none"
           >
             0
           </button>
           <button
             type="button"
             onClick={handleBackspace}
-            className="h-14 bg-slate-800/60 hover:bg-slate-700/60 active:bg-slate-600/60 border border-slate-800 text-lg rounded-xl flex items-center justify-center transition focus:outline-none text-slate-400"
+            className="h-14 bg-white hover:bg-slate-50 active:bg-slate-100 border border-monitor-border text-lg rounded-xl flex items-center justify-center shadow-sm transition focus:outline-none text-monitor-dim"
           >
             清除
           </button>
