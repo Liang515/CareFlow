@@ -21,7 +21,9 @@ import {
   RefreshCw,
   HandHeart,
   MessageSquarePlus,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 // 原生位元運算加密與解密工具函數 (支援 UTF-8 中文字元，防止 localStorage 直接外洩個資)
@@ -467,6 +469,19 @@ function App() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('vitals'); // 'vitals' or 'trends'
   const [showAllLogs, setShowAllLogs] = useState(false);
+  const [collapsedHours, setCollapsedHours] = useState({});
+
+  const handleExpandAllHours = () => {
+    setCollapsedHours({});
+  };
+
+  const handleCollapseAllHours = (allKeys) => {
+    const nextCollapsed = {};
+    allKeys.forEach(k => {
+      nextCollapsed[k] = true;
+    });
+    setCollapsedHours(nextCollapsed);
+  };
   
   // 顯示字型大小設定狀態 (數值型比例 0.85 - 1.45)
   const [fontScale, setFontScale] = useState(() => {
@@ -806,14 +821,16 @@ function App() {
             />
             {points.map((p, i) => (
               <g key={i}>
-                <circle
-                  cx={p.x}
-                  cy={p.y}
-                  r="3.5"
-                  fill="#ffffff"
-                  stroke={strokeColor}
-                  strokeWidth="2.5"
-                />
+                {activeTooltip && activeTooltip.chartId === key && activeTooltip.index === i && (
+                  <circle
+                    cx={p.x}
+                    cy={p.y}
+                    r="4.5"
+                    fill={strokeColor}
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                  />
+                )}
                 {showLabelFlags[i] && (
                   <text
                     x={p.x}
@@ -1075,19 +1092,25 @@ function App() {
             {points.map((p, i) => (
               <g key={i}>
                 {/* SBP */}
-                <circle cx={p.x} cy={p.ySbp} r="3" fill="#ffffff" stroke="#ef4444" strokeWidth="1.5" />
+                {activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i && (
+                  <circle cx={p.x} cy={p.ySbp} r="4.5" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                )}
                 {showLabelFlags[i] && (
                   <text x={p.x} y={p.ySbp - 6} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
                 )}
                 
                 {/* MAP */}
-                <circle cx={p.x} cy={p.yMap} r="2.5" fill="#ffffff" stroke="#8b5cf6" strokeWidth="1.2" />
+                {activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i && (
+                  <circle cx={p.x} cy={p.yMap} r="3.5" fill="#8b5cf6" stroke="#ffffff" strokeWidth="1.5" />
+                )}
                 {showLabelFlags[i] && (
                   <text x={p.x} y={p.yMap - 5} textAnchor="middle" fontSize="7" fontWeight="bold" fill="#8b5cf6" className="font-mono">{p.map}</text>
                 )}
 
                 {/* DBP */}
-                <circle cx={p.x} cy={p.yDbp} r="3" fill="#ffffff" stroke="#475569" strokeWidth="1.5" />
+                {activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i && (
+                  <circle cx={p.x} cy={p.yDbp} r="4.5" fill="#475569" stroke="#ffffff" strokeWidth="2" />
+                )}
                 {showLabelFlags[i] && (
                   <text x={p.x} y={p.yDbp + 9} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
                 )}
@@ -1446,15 +1469,17 @@ function App() {
                   strokeLinejoin="round"
                 />
                 {movingAverages.map((ma, i) => (
-                  <circle
-                    key={`ma-dot-${i}`}
-                    cx={ma.x}
-                    cy={ma.y}
-                    r="2.5"
-                    fill="#ffffff"
-                    stroke="#0891b2"
-                    strokeWidth="1.5"
-                  />
+                  activeTooltip && activeTooltip.chartId === 'urine' && activeTooltip.index === i && (
+                    <circle
+                      key={`ma-dot-${i}`}
+                      cx={ma.x}
+                      cy={ma.y}
+                      r="4"
+                      fill="#06b6d4"
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                    />
+                  )
                 ))}
               </>
             )}
@@ -1925,25 +1950,37 @@ function App() {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              {gasUrl ? (
-                syncStatus === 'idle' ? (
-                  <span className="inline-flex items-center gap-0.5 text-slate-400 text-[8px] font-bold bg-slate-100 px-1 py-0.2 rounded leading-tight whitespace-nowrap">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                    <span>雲端連線</span>
+              {gasUrl ? (() => {
+                let badgeClass = "";
+                let badgeContent = null;
+                if (syncStatus === 'idle') {
+                  badgeClass = "bg-slate-100 text-slate-400";
+                  badgeContent = (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse mr-0.5" />
+                      <span>雲端連線</span>
+                    </>
+                  );
+                } else if (syncStatus === 'syncing') {
+                  badgeClass = "bg-amber-100 text-amber-700 animate-pulse";
+                  badgeContent = <span>同步中</span>;
+                } else if (syncStatus === 'success') {
+                  badgeClass = "bg-emerald-100 text-emerald-700";
+                  badgeContent = <span>同步成功</span>;
+                } else {
+                  badgeClass = "bg-rose-100 text-rose-700";
+                  badgeContent = <span>連線失敗</span>;
+                }
+                return (
+                  <span 
+                    key="sync-status-badge"
+                    className={`inline-flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded leading-tight whitespace-nowrap ${badgeClass}`}
+                  >
+                    {badgeContent}
                   </span>
-                ) : (
-                  <span className={`inline-flex items-center gap-0.5 text-[8px] font-bold px-1 py-0.2 rounded leading-tight whitespace-nowrap ${
-                    syncStatus === 'syncing' ? 'bg-amber-50 text-amber-600 animate-pulse' :
-                    syncStatus === 'success' ? 'bg-emerald-50 text-emerald-600' :
-                    'bg-rose-50 text-rose-600'
-                  }`}>
-                    {syncStatus === 'syncing' ? '同步中' : 
-                     syncStatus === 'success' ? '同步成功' : 
-                     '連線失敗'}
-                  </span>
-                )
-              ) : (
-                <span className="text-slate-400 text-[8px] font-bold bg-slate-100 px-1 py-0.2 rounded leading-tight whitespace-nowrap">本地儲存</span>
+                );
+              })() : (
+                <span key="local-badge" className="text-slate-400 text-[8px] font-bold bg-slate-100 px-1.5 py-0.5 rounded leading-tight whitespace-nowrap">本地儲存</span>
               )}
             </div>
           </div>
@@ -1960,9 +1997,9 @@ function App() {
               }
             }}
             disabled={syncStatus === 'syncing'}
-            className={`p-1.5 rounded-lg border transition active:scale-95 ${
+            className={`p-1.5 rounded-lg border transition active:scale-95 disabled:opacity-100 disabled:cursor-not-allowed ${
               syncStatus === 'syncing' 
-                ? 'bg-amber-50 border-amber-200 text-amber-500' 
+                ? 'bg-amber-100 border-amber-200 text-amber-700 disabled:bg-amber-100 disabled:text-amber-700 disabled:border-amber-200' 
                 : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-500 hover:text-slate-700'
             }`}
             title="重新整理數據"
@@ -2232,172 +2269,257 @@ function App() {
         </section>
 
         {/* 5. telemetry 記錄串流歷史 */}
-        <section className="space-y-2">
-            <div className="flex justify-between items-center px-1">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim">
-                臨床監控歷史紀錄流
-              </h2>
-            </div>
+        {(() => {
+          const filtered = logs.filter(log => {
+            if (logFilter === 'all') return true;
+            if (logFilter === 'vitals') return log.type === 'vitals';
+            if (logFilter === 'urine') return log.type === 'event' && log.eventType === 'urine';
+            if (logFilter === 'medication') return log.type === 'event' && log.eventType === 'medication';
+            if (logFilter === 'care_request') return log.type === 'event' && log.eventType === 'care_request';
+            return true;
+          });
 
-            {/* 分類篩選按鈕列 */}
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 px-1">
-              {[
-                { label: '全部', value: 'all', count: logs.length },
-                { label: '生理數據', value: 'vitals', count: logs.filter(l => l.type === 'vitals').length },
-                { label: '排泄記錄', value: 'urine', count: logs.filter(l => l.type === 'event' && l.eventType === 'urine').length },
-                { label: '給藥處置', value: 'medication', count: logs.filter(l => l.type === 'event' && l.eventType === 'medication').length },
-                { label: '照護需求', value: 'care_request', count: logs.filter(l => l.type === 'event' && l.eventType === 'care_request').length }
-              ].map(tab => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => setLogFilter(tab.value)}
-                  className={`py-1 px-2.5 rounded-full border text-[9px] font-bold transition flex items-center gap-1 flex-shrink-0 ${
-                    logFilter === tab.value
-                      ? 'bg-slate-700 border-slate-700 text-white shadow-sm font-bold'
-                      : 'bg-white border-monitor-border text-monitor-dim hover:text-monitor-text hover:bg-slate-50'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span className={`text-[8px] px-1 rounded-full ${
-                    logFilter === tab.value ? 'bg-slate-600 text-white font-normal' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {tab.count}
-                  </span>
-                </button>
-              ))}
-            </div>
+          return (
+            <section className="space-y-2">
+              <div className="flex justify-between items-center px-1">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim">
+                  臨床監控歷史紀錄流
+                </h2>
+                {/* 全部展開 / 全部收合按鈕 */}
+                {filtered.length > 0 && (
+                  <div className="flex gap-2 text-[9px] font-bold">
+                    <button
+                      type="button"
+                      onClick={handleExpandAllHours}
+                      className="px-2 py-0.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded transition active:scale-95 shadow-sm"
+                    >
+                      全部展開
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allKeys = [];
+                        filtered.forEach(log => {
+                          const date = new Date(log.timestamp);
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const hour = String(date.getHours()).padStart(2, '0');
+                          allKeys.push(`${year}-${month}-${day} ${hour}:00`);
+                        });
+                        handleCollapseAllHours(allKeys);
+                      }}
+                      className="px-2 py-0.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded transition active:scale-95 shadow-sm"
+                    >
+                      全部收合
+                    </button>
+                  </div>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              {(() => {
-                const filtered = logs.filter(log => {
-                  if (logFilter === 'all') return true;
-                  if (logFilter === 'vitals') return log.type === 'vitals';
-                  if (logFilter === 'urine') return log.type === 'event' && log.eventType === 'urine';
-                  if (logFilter === 'medication') return log.type === 'event' && log.eventType === 'medication';
-                  if (logFilter === 'care_request') return log.type === 'event' && log.eventType === 'care_request';
-                  return true;
-                });
-                if (filtered.length === 0) {
+              {/* 分類篩選按鈕列 */}
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 px-1">
+                {[
+                  { label: '全部', value: 'all', count: logs.length },
+                  { label: '生理數據', value: 'vitals', count: logs.filter(l => l.type === 'vitals').length },
+                  { label: '排泄記錄', value: 'urine', count: logs.filter(l => l.type === 'event' && l.eventType === 'urine').length },
+                  { label: '給藥處置', value: 'medication', count: logs.filter(l => l.type === 'event' && l.eventType === 'medication').length },
+                  { label: '照護需求', value: 'care_request', count: logs.filter(l => l.type === 'event' && l.eventType === 'care_request').length }
+                ].map(tab => (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    onClick={() => setLogFilter(tab.value)}
+                    className={`py-1 px-2.5 rounded-full border text-[9px] font-bold transition flex items-center gap-1 flex-shrink-0 ${
+                      logFilter === tab.value
+                        ? 'bg-slate-700 border-slate-700 text-white shadow-sm font-bold'
+                        : 'bg-white border-monitor-border text-monitor-dim hover:text-monitor-text hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className={`text-[8px] px-1 rounded-full ${
+                      logFilter === tab.value ? 'bg-slate-600 text-white font-normal' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                {(() => {
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-8 bg-monitor-card border border-monitor-border rounded-lg text-xs text-monitor-dim">
+                        目前無此分類的紀錄
+                      </div>
+                    );
+                  }
+
+                  // 按小時分群
+                  const groupedByHour = {};
+                  filtered.forEach(log => {
+                    const date = new Date(log.timestamp);
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const hour = String(date.getHours()).padStart(2, '0');
+                    const hourKey = `${year}-${month}-${day} ${hour}:00`;
+                    
+                    if (!groupedByHour[hourKey]) {
+                      groupedByHour[hourKey] = [];
+                    }
+                    groupedByHour[hourKey].push(log);
+                  });
+                  
+                  const hourKeys = Object.keys(groupedByHour).sort((a, b) => b.localeCompare(a));
+
                   return (
-                    <div className="text-center py-8 bg-monitor-card border border-monitor-border rounded-lg text-xs text-monitor-dim">
-                      目前無此分類的紀錄
-                    </div>
-                  );
-                }
-                const displayed = showAllLogs ? filtered : filtered.slice(0, 3);
-                return (
-                  <>
-                    {displayed.map((log) => {
-                      const date = new Date(log.timestamp);
-                      const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                      const dateStr = date.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
-                      
-                      return (
-                        <div 
-                          key={log.id} 
-                          className="bg-monitor-card border border-monitor-border rounded-lg px-3 py-2.5 flex items-start justify-between gap-3 text-xs shadow-sm"
-                        >
-                          <div className="space-y-1 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-mono font-semibold text-monitor-dim">
-                                {dateStr} {timeStr}
+                    <div className="space-y-2.5">
+                      {hourKeys.map(key => {
+                        const logsInHour = groupedByHour[key];
+                        const isCollapsed = !!collapsedHours[key];
+                        const dateObj = new Date(logsInHour[0].timestamp);
+                        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        const dd = String(dateObj.getDate()).padStart(2, '0');
+                        const hh = String(dateObj.getHours()).padStart(2, '0');
+                        const displayLabel = `${mm}/${dd} ${hh}:00`;
+                        
+                        return (
+                          <div key={key} className="space-y-1.5">
+                            {/* 小時收合標頭 */}
+                            <div 
+                              onClick={() => {
+                                setCollapsedHours(prev => ({
+                                  ...prev,
+                                  [key]: !prev[key]
+                                }));
+                              }}
+                              className="flex items-center justify-between bg-slate-50 border border-slate-200/80 hover:bg-slate-100/60 rounded-lg px-3 py-1.5 cursor-pointer select-none transition"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Clock size={11} className="text-monitor-dim" />
+                                <span className="font-bold text-slate-700 font-mono text-[10px]">{displayLabel}</span>
+                                <span className="text-[9px] text-slate-400 bg-white border border-slate-200 px-1.5 py-0.2 rounded-full font-bold">
+                                  {logsInHour.length} 筆紀錄
+                                </span>
+                              </div>
+                              <span className="text-[9px] text-monitor-cyan font-bold flex items-center gap-0.5">
+                                {isCollapsed ? '展開' : '收合'}
+                                {isCollapsed ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
                               </span>
-                              {log.type === 'vitals' ? (
-                                <span className="bg-emerald-50 border border-emerald-100 text-monitor-green px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
-                                  生理數據
-                                </span>
-                              ) : log.eventType === 'care_request' ? (
-                                <span className="bg-orange-50 border border-orange-100 text-orange-600 px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
-                                  照護需求
-                                </span>
-                              ) : (
-                                <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
-                                  {log.eventType === 'urine' ? '排泄記錄' : '給藥處置'}
-                                </span>
-                              )}
                             </div>
-                            
-                            {log.type === 'vitals' ? (
-                              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pt-1 font-mono text-[11px] text-monitor-text">
-                                <div className="whitespace-nowrap">
-                                  <span className="text-monitor-dim">心率:</span>{' '}
-                                  <strong className={isHrAlert(log.hr) ? 'text-monitor-red' : 'text-monitor-green'}>{log.hr}</strong>
-                                  <span className="text-[9px] text-monitor-dim ml-0.5">bpm</span>
-                                </div>
-                                <div className="whitespace-nowrap">
-                                  <span className="text-monitor-dim">血氧:</span>{' '}
-                                  <strong className={isSpo2Alert(log.spo2) ? 'text-monitor-red' : 'text-monitor-cyan'}>{log.spo2}%</strong>
-                                </div>
-                                <div className="whitespace-nowrap">
-                                  <span className="text-monitor-dim">呼吸:</span>{' '}
-                                  <strong className={isRrAlert(log.rr) ? 'text-monitor-red' : 'text-monitor-yellow'}>{log.rr}</strong>
-                                  <span className="text-[9px] text-monitor-dim ml-0.5">rpm</span>
-                                </div>
-                                <div className="whitespace-nowrap">
-                                  <span className="text-monitor-dim">血壓:</span>{' '}
-                                  <strong className={isBpAlert(log.sbp, log.dbp) ? 'text-monitor-red' : 'text-monitor-text'}>{log.sbp}/{log.dbp}</strong>
-                                  <span className="text-[9px] text-monitor-dim ml-0.5">mmHg</span>
-                                </div>
+
+                            {/* 該小時內的紀錄清單 */}
+                            {!isCollapsed && (
+                              <div className="space-y-1.5 pl-1.5 border-l-2 border-slate-200/60 ml-2.5">
+                                {logsInHour.map((log) => {
+                                  const date = new Date(log.timestamp);
+                                  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                                  
+                                  return (
+                                    <div 
+                                      key={log.id} 
+                                      className="bg-monitor-card border border-monitor-border rounded-lg px-3 py-2 flex items-start justify-between gap-3 text-xs shadow-sm"
+                                    >
+                                      <div className="space-y-1 flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[10px] font-mono font-semibold text-monitor-dim">
+                                            {timeStr}
+                                          </span>
+                                          {log.type === 'vitals' ? (
+                                            <span className="bg-emerald-50 border border-emerald-100 text-monitor-green px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                                              生理數據
+                                            </span>
+                                          ) : log.eventType === 'care_request' ? (
+                                            <span className="bg-orange-50 border border-orange-100 text-orange-600 px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                                              照護需求
+                                            </span>
+                                          ) : (
+                                            <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                                              {log.eventType === 'urine' ? '排泄記錄' : '給藥處置'}
+                                            </span>
+                                          )}
+                                        </div>
+                                        
+                                        {log.type === 'vitals' ? (
+                                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 font-mono text-[10px] text-monitor-text">
+                                            <div className="whitespace-nowrap">
+                                              <span className="text-monitor-dim">心率:</span>{' '}
+                                              <strong className={isHrAlert(log.hr) ? 'text-monitor-red' : 'text-monitor-green'}>{log.hr}</strong>
+                                              <span className="text-[8px] text-monitor-dim ml-0.5">bpm</span>
+                                            </div>
+                                            <div className="whitespace-nowrap">
+                                              <span className="text-monitor-dim">血氧:</span>{' '}
+                                              <strong className={isSpo2Alert(log.spo2) ? 'text-monitor-red' : 'text-monitor-cyan'}>{log.spo2}%</strong>
+                                            </div>
+                                            <div className="whitespace-nowrap">
+                                              <span className="text-monitor-dim">呼吸:</span>{' '}
+                                              <strong className={isRrAlert(log.rr) ? 'text-monitor-red' : 'text-monitor-yellow'}>{log.rr}</strong>
+                                              <span className="text-[8px] text-monitor-dim ml-0.5">rpm</span>
+                                            </div>
+                                            <div className="whitespace-nowrap">
+                                              <span className="text-monitor-dim">血壓:</span>{' '}
+                                              <strong className={isBpAlert(log.sbp, log.dbp) ? 'text-monitor-red' : 'text-monitor-text'}>{log.sbp}/{log.dbp}</strong>
+                                              <span className="text-[8px] text-monitor-dim ml-0.5">mmHg</span>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="text-[10px] text-monitor-text pt-0.5">
+                                            {log.eventType === 'urine' ? (
+                                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                <span className="whitespace-nowrap">排出尿量: <strong className="text-monitor-cyan">{log.volumeCc} cc</strong></span>
+                                                <span className="flex items-center gap-1 whitespace-nowrap">
+                                                  <span>尿色:</span> 
+                                                  <span className={`w-2 h-2 rounded-full border border-slate-300 inline-block ${
+                                                    log.color === 'bright_red' ? 'bg-[#ef4444]' : log.color === 'tea' ? 'bg-[#8d6e63]' : 'bg-[#fef08a]'
+                                                  }`} />
+                                                  <strong className="text-monitor-text font-bold">
+                                                    {log.color === 'bright_red' ? '鮮紅肉眼血尿' : log.color === 'tea' ? '深茶色' : '清澈淡黃'}
+                                                  </strong>
+                                                </span>
+                                              </div>
+                                            ) : log.eventType === 'care_request' ? (
+                                              <div>
+                                                照護需求: <strong className="text-orange-600">{log.requestText}</strong>
+                                              </div>
+                                            ) : (
+                                              <div>
+                                                給藥: <strong className="text-monitor-purple">{log.medicationName}</strong>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                        
+                                        {log.notes && (
+                                          <p className="text-[9px] text-monitor-dim italic border-l border-slate-200 pl-1.5 mt-0.5">
+                                            「{log.notes}」
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      <button
+                                        onClick={() => deleteLog(log.id)}
+                                        className="text-monitor-dim hover:text-monitor-red p-1 rounded transition"
+                                        title="刪除此筆紀錄"
+                                      >
+                                        <Trash2 size={11} />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            ) : (
-                              <div className="text-[11px] text-monitor-text pt-0.5">
-                                {log.eventType === 'urine' ? (
-                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                    <span className="whitespace-nowrap">排出尿量: <strong className="text-monitor-cyan">{log.volumeCc} cc</strong></span>
-                                    <span className="flex items-center gap-1 whitespace-nowrap">
-                                      <span>尿色:</span> 
-                                      <span className={`w-2.5 h-2.5 rounded-full border border-slate-300 inline-block ${
-                                        log.color === 'bright_red' ? 'bg-[#ef4444]' : log.color === 'tea' ? 'bg-[#8d6e63]' : 'bg-[#fef08a]'
-                                      }`} />
-                                      <strong className="text-monitor-text font-bold">
-                                        {log.color === 'bright_red' ? '鮮紅肉眼血尿' : log.color === 'tea' ? '深茶色' : '清澈淡黃'}
-                                      </strong>
-                                    </span>
-                                  </div>
-                                ) : log.eventType === 'care_request' ? (
-                                  <div>
-                                    照護需求: <strong className="text-orange-600">{log.requestText}</strong>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    給藥: <strong className="text-monitor-purple">{log.medicationName}</strong>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            
-                            {log.notes && (
-                              <p className="text-[10px] text-monitor-dim italic border-l-2 border-slate-200 pl-2 mt-1">
-                                「{log.notes}」
-                              </p>
                             )}
                           </div>
-
-                          <button
-                            onClick={() => deleteLog(log.id)}
-                            className="text-monitor-dim hover:text-monitor-red p-1 rounded transition"
-                            title="刪除此筆紀錄"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      );
-                    })}
-                    {filtered.length > 3 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAllLogs(!showAllLogs)}
-                        className="w-full py-2.5 mt-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 font-bold rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-1.5"
-                      >
-                        {showAllLogs ? '收合歷史紀錄' : `顯示更多歷史紀錄 (還有 ${filtered.length - 3} 筆)`}
-                      </button>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          </section>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </section>
+          );
+        })()}
 
       </main>
 
