@@ -1323,7 +1323,7 @@ function App() {
               每小時尿量 (3次移動平均)
             </span>
           </span>
-          <span className="text-[10px] text-monitor-dim">
+          <span className="text-[10px] text-monitor-dim whitespace-nowrap">
             總量: <strong className="text-cyan-600 font-mono">{totalUrineVol}</strong> cc | 平均: <strong className="text-cyan-600 font-mono">{avgHourlyUrine}</strong> cc/hr
           </span>
         </div>
@@ -1462,7 +1462,7 @@ function App() {
             {/* 繪製浮動提示框 */}
             {activeTooltip && activeTooltip.chartId === 'urine' && (
               (() => {
-                const tooltipWidth = 140;
+                const tooltipWidth = 150;
                 const tooltipHeight = 44;
                 let tooltipX = activeTooltip.x - tooltipWidth / 2;
                 if (tooltipX < 4) tooltipX = 4;
