@@ -1281,12 +1281,19 @@ function App() {
       }
     }
 
+    const totalUrineVol = vals.reduce((sum, v) => sum + v, 0);
+    const nowTime = new Date().getTime();
+    const minTimeUrine = data.length > 0 ? Math.min(...data.map(d => d.time.getTime())) : nowTime;
+    const elapsedHoursTotal = (nowTime - minTimeUrine) / (1000 * 60 * 60);
+    const hoursForAvg = Math.max(1, elapsedHoursTotal);
+    const avgHourlyUrine = (totalUrineVol / hoursForAvg).toFixed(1);
+
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
           <span className="font-bold text-monitor-cyan flex items-center gap-1">💧 尿量排泄趨勢 (Urine Output)</span>
           <span className="text-[10px] text-monitor-dim">
-            累計: <strong className="text-monitor-cyan">{vals.length}</strong> 次 | 單次最大: <strong className="text-cyan-600 font-mono">{Math.max(...vals)}</strong> cc
+            總量: <strong className="text-cyan-600 font-mono">{totalUrineVol}</strong> cc | 平均: <strong className="text-cyan-600 font-mono">{avgHourlyUrine}</strong> cc/hr
           </span>
         </div>
         <div className="relative">
@@ -1680,6 +1687,25 @@ function App() {
     report += `📈 最新生理 telemetry 指標:\n`;
     report += `- 心率 (HR): ${hrStr}\n- 血氧 (SpO2): ${spo2Str}\n- 呼吸 (RR): ${rrStr}\n- 血壓 (BP): ${bpStr} (平均壓 MAP: ${mapStr})\n\n`;
     
+    // 尿量排泄統計
+    const urineLogs = chronoLogs.filter(l => l.eventType === 'urine');
+    if (urineLogs.length > 0) {
+      const totalUrine = urineLogs.reduce((sum, l) => sum + (Number(l.volumeCc) || 0), 0);
+      const avgUrinePerHour = (totalUrine / reportDuration).toFixed(1);
+      
+      report += `💧 尿量排泄統計 (${reportDuration}小時內):\n`;
+      report += `- 總排尿量: ${totalUrine} cc (共 ${urineLogs.length} 次)\n`;
+      report += `- 平均每小時排尿量: ${avgUrinePerHour} cc/hr\n`;
+      
+      const colorCounts = {};
+      urineLogs.forEach(l => {
+        const cText = l.color === 'bright_red' ? '鮮紅肉眼血尿' : l.color === 'tea' ? '深茶色' : '清澈淡黃';
+        colorCounts[cText] = (colorCounts[cText] || 0) + 1;
+      });
+      const colorStr = Object.entries(colorCounts).map(([k, v]) => `${k} ${v}次`).join('、');
+      report += `- 尿色性狀分佈: ${colorStr}\n\n`;
+    }
+
     // 照護需求統計段落
     if (careRequests.length > 0) {
       report += `🤲 照護需求統計 (共 ${careRequests.length} 次):\n`;
