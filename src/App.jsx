@@ -2551,125 +2551,30 @@ function App() {
       <SettingsModal
         show={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
-        patient={patient}
-        setPatient={setPatient}
-        logs={logs}
-        setPassword={setPassword}
-        handleStartFresh={handleStartFresh}
-        setIsLocked={setIsLocked}
-        gasUrl={gasUrl}
-        setGasUrl={setGasUrl}
-        syncStatus={syncStatus}
-        triggerSync={triggerSync}
-        password={password}
+        fontSize={fontSize}
+        setFontSize={setFontSize}
       />
 
     </div>
   );
 }
 
-// 系統設定與受測者資料編輯對話框元件 (獨立 State 管理，避免 App 內部狀態過於混亂)
+// 顯示設定對話框元件 (僅提供字型大小控制，避免不必要的功能)
 function SettingsModal({ 
   show, 
   onClose, 
-  patient, 
-  setPatient, 
-  logs, 
-  setPassword, 
-  handleStartFresh, 
-  setIsLocked,
-  gasUrl,
-  setGasUrl,
-  syncStatus,
-  triggerSync,
-  password
+  fontSize,
+  setFontSize
 }) {
-  const [modalGasUrl, setModalGasUrl] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmNewPin, setConfirmNewPin] = useState('');
-  const [changePinError, setChangePinError] = useState('');
-  const [changePinSuccess, setChangePinSuccess] = useState(false);
-
-  // 每次開啟或病患資料更新時，重置輸入欄位與暫存狀態
-  useEffect(() => {
-    if (show) {
-      setModalGasUrl(gasUrl || '');
-      setNewPin('');
-      setConfirmNewPin('');
-      setChangePinError('');
-      setChangePinSuccess(false);
-    }
-  }, [show, gasUrl]);
-
   if (!show) return null;
 
-  const handleChangePin = async (e) => {
-    e.preventDefault();
-    if (newPin.length !== 4 || confirmNewPin.length !== 4) {
-      setChangePinError('密碼必須為 4 位數數字！');
-      return;
-    }
-    if (newPin !== confirmNewPin) {
-      setChangePinError('兩次輸入的新密碼不一致！');
-      return;
-    }
-    
-    try {
-      // 1. 儲存新的驗證標記
-      const newToken = encrypt('careflow_auth_ok', newPin);
-      localStorage.setItem('careflow_verify', newToken);
-      localStorage.removeItem('careflow_no_pin'); // 確保移除無密碼標記
-      
-      // 2. 使用新密碼重新加密目前的資料
-      const encryptedLogs = encrypt(JSON.stringify(logs), newPin);
-      const encryptedPatient = encrypt(JSON.stringify(patient), newPin);
-      localStorage.setItem('careflow_logs', encryptedLogs);
-      localStorage.setItem('careflow_patient', encryptedPatient);
-      
-      // 3. 同步新密碼加密的資料至 Google Sheets 雲端
-      if (gasUrl) {
-        setChangePinError('正在同步雲端新密碼加密資料，請稍候...');
-        await postToGas(gasUrl, { action: 'clearAll' });
-        await postToGas(gasUrl, { action: 'setPatient', encrypted_data: encryptedPatient });
-        for (const log of logs) {
-          const fields = { ...log };
-          delete fields.id;
-          delete fields.timestamp;
-          delete fields.type;
-          await postToGas(gasUrl, {
-            action: 'appendLog',
-            log: {
-              id: log.id,
-              timestamp: log.timestamp,
-              type: log.type,
-              data: encrypt(JSON.stringify(fields), newPin)
-            }
-          });
-        }
-      }
-
-      // 4. 更新父元件的 password
-      localStorage.setItem('careflow_session_pin', newPin);
-      setPassword(newPin);
-      setChangePinSuccess(true);
-      setNewPin('');
-      setConfirmNewPin('');
-      setChangePinError('');
-    } catch (e) {
-      console.error(e);
-      setChangePinError('修改密碼或同步雲端時發生錯誤！');
-    }
-  };
-
-
-
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 transition-opacity">
-      <div className="bg-monitor-card border-t-4 border-slate-500 rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 transition-opacity animate-fade-in">
+      <div className="bg-monitor-card border-t-4 border-slate-500 rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl animate-slide-up">
         
         <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-            <Settings size={16} /> 系統設定與受測者個資編輯
+            <Settings size={16} /> 顯示與介面設定
           </h3>
           <button 
             type="button"
@@ -2681,140 +2586,37 @@ function SettingsModal({
         </div>
 
         <div className="space-y-4 text-xs">
-          
-
-          {/* Google Sheets 雲端同步設定 */}
-          <div className="space-y-3 pt-2 border-t border-slate-150">
-            <h4 className="font-bold text-slate-800 border-b border-slate-100 pb-1 flex justify-between items-center">
-              <span>Google Sheets 雲端資料同步</span>
-              <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                syncStatus === 'syncing' ? 'bg-amber-100 text-amber-700 animate-pulse' :
-                syncStatus === 'success' ? 'bg-emerald-100 text-emerald-700' :
-                syncStatus === 'error' ? 'bg-rose-100 text-rose-700' :
-                'bg-slate-100 text-slate-500'
-              }`}>
-                {syncStatus === 'syncing' ? '同步中...' : syncStatus === 'success' ? '連線成功' : syncStatus === 'error' ? '連線失敗' : '已就緒'}
-              </span>
+          {/* 介面字型大小設定 */}
+          <div className="space-y-3 pt-1">
+            <h4 className="font-bold text-slate-800 border-b border-slate-100 pb-1 flex justify-between items-center font-sans">
+              <span>介面顯示字型大小</span>
             </h4>
-            <div className="space-y-1">
-              <label className="font-semibold text-monitor-dim block">Google Apps Script Web App API 網址</label>
-              <input 
-                type="text" 
-                value={modalGasUrl}
-                onChange={(e) => setModalGasUrl(e.target.value)}
-                placeholder="https://script.google.com/macros/s/.../exec"
-                className="w-full py-1.5 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-[10px] text-monitor-text focus:outline-none focus:border-slate-500 font-mono"
-              />
-              <p className="text-[9px] text-monitor-dim">將您在 Google Sheet 擴充功能中部署的網頁應用程式 API 網址貼於此處以開啟同步。</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const cleanedUrl = modalGasUrl.trim();
-                  localStorage.setItem('careflow_gas_url', cleanedUrl);
-                  setGasUrl(cleanedUrl);
-                  alert('API 網址已儲存！現在將測試連線並拉取雲端最新資料。');
-                  if (cleanedUrl) {
-                    triggerSync(password);
-                  }
-                }}
-                className="flex-1 py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold rounded-lg transition text-center"
-              >
-                儲存並測試連線
-              </button>
-              {gasUrl && (
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: '偏小 (90%)', value: 'small' },
+                { label: '適中 (100%)', value: 'normal' },
+                { label: '中等 (108%)', value: 'medium' },
+                { label: '偏大 (116%)', value: 'large' }
+              ].map((opt) => (
                 <button
+                  key={opt.value}
                   type="button"
-                  onClick={() => {
-                    if (window.confirm('確定要中斷與此雲端試算表的同步連結嗎？中斷後資料將僅儲存於本機裝置。')) {
-                      localStorage.setItem('careflow_gas_url', '');
-                      setGasUrl('');
-                      setModalGasUrl('');
-                      alert('已中斷雲端連線，改為本地單機模式。');
-                    }
-                  }}
-                  className="py-2 px-3 bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 font-bold rounded-lg transition text-center"
+                  onClick={() => setFontSize(opt.value)}
+                  className={`py-2 px-1 text-center font-semibold rounded-lg border transition text-[10px] ${
+                    fontSize === opt.value
+                      ? 'bg-slate-700 border-slate-700 text-white shadow-sm font-bold'
+                      : 'bg-monitor-bg border-monitor-border text-monitor-dim hover:text-monitor-text hover:bg-slate-50'
+                  }`}
                 >
-                  中斷連結
+                  {opt.label.split(' ')[0]}
+                  <span className="block text-[8px] font-mono opacity-80">{opt.label.split(' ')[1]}</span>
                 </button>
-              )}
+              ))}
             </div>
+            <p className="text-[9px] text-monitor-dim leading-relaxed">
+              調整字型大小後，系統會自動配合原版面進行微調，確保在縮放時不會產生異常折行或超出螢幕框架。
+            </p>
           </div>
-
-          {/* 2. 修改密碼鎖 (PIN) */}
-          <form onSubmit={handleChangePin} className="space-y-3 pt-2 border-t border-slate-150">
-            <h4 className="font-bold text-slate-800 border-b border-slate-100 pb-1 font-sans">修改密碼鎖 (4 位數 PIN)</h4>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="font-semibold text-monitor-dim block">新 4 位數密碼</label>
-                <input 
-                  type="password" 
-                  maxLength={4}
-                  value={newPin}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setNewPin(val);
-                    setChangePinError('');
-                    setChangePinSuccess(false);
-                  }}
-                  placeholder="新 PIN 碼"
-                  className="w-full py-1.5 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text text-center tracking-widest font-mono focus:outline-none focus:border-slate-500"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-semibold text-monitor-dim block">確認新密碼</label>
-                <input 
-                  type="password" 
-                  maxLength={4}
-                  value={confirmNewPin}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setConfirmNewPin(val);
-                    setChangePinError('');
-                    setChangePinSuccess(false);
-                  }}
-                  placeholder="再次輸入"
-                  className="w-full py-1.5 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text text-center tracking-widest font-mono focus:outline-none focus:border-slate-500"
-                />
-              </div>
-            </div>
-
-            {changePinError && (
-              <div className="text-[10px] text-rose-500 font-bold bg-rose-50 border border-rose-100 px-2.5 py-1.5 rounded-md">
-                ⚠️ {changePinError}
-              </div>
-            )}
-            
-            {changePinSuccess && (
-              <div className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-2.5 py-1.5 rounded-md">
-                ✓ 密碼修改成功！已套用新密碼進行數據加密。
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="w-full py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold rounded-lg transition"
-            >
-              確認修改密碼鎖
-            </button>
-          </form>
-
-          {/* 3. 危險區域 */}
-          <div className="space-y-2 pt-2 border-t border-slate-150">
-            <h4 className="font-bold text-rose-600">危險區域</h4>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleStartFresh}
-                className="w-full py-2 bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 font-bold rounded-lg transition text-[11px]"
-              >
-                重設受測者與清除資料
-              </button>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>

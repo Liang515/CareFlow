@@ -60,3 +60,24 @@
 .animate-fade-in {
   animation: fade-in 0.2s ease-out forwards;
 }
+
+:root {
+  --font-scale: 1.0;
+}
+
+/* 覆寫 Tailwind 與自訂文字大小，使其乘上 --font-scale */
+.text-xs { font-size: calc(0.75rem * var(--font-scale)) !important; }
+.text-sm { font-size: calc(0.875rem * var(--font-scale)) !important; }
+.text-base { font-size: calc(1rem * var(--font-scale)) !important; }
+.text-lg { font-size: calc(1.125rem * var(--font-scale)) !important; }
+.text-xl { font-size: calc(1.25rem * var(--font-scale)) !important; }
+.text-2xl { font-size: calc(1.5rem * var(--font-scale)) !important; }
+.text-3xl { font-size: calc(1.875rem * var(--font-scale)) !important; }
+.text-4xl { font-size: calc(2.25rem * var(--font-scale)) !important; }
+
+/* 自訂像素大小覆寫 */
+.text-\[8px\] { font-size: calc(8px * var(--font-scale)) !important; }
+.text-\[9px\] { font-size: calc(9px * var(--font-scale)) !important; }
+.text-\[10px\] { font-size: calc(10px * var(--font-scale)) !important; }
+.text-\[11px\] { font-size: calc(11px * var(--font-scale)) !important; }
+
