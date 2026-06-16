@@ -1079,7 +1079,7 @@ function App() {
       map: mapVal,
       notes: noteText.trim() || undefined
     };
-    setLogs([newLog, ...logs]);
+    setLogs(prev => [newLog, ...prev]);
     setNoteText('');
     setShowVitalsModal(false);
     
@@ -1099,7 +1099,7 @@ function App() {
       color: urineColor,
       notes: noteText.trim() || undefined
     };
-    setLogs([newLog, ...logs]);
+    setLogs(prev => [newLog, ...prev]);
     setNoteText('');
     setShowUrineModal(false);
     
@@ -1120,7 +1120,7 @@ function App() {
       medicationName: finalMedName,
       notes: noteText.trim() || undefined
     };
-    setLogs([newLog, ...logs]);
+    setLogs(prev => [newLog, ...prev]);
     setNoteText('');
     setCustomMed('');
     setShowMedModal(false);
@@ -1141,7 +1141,7 @@ function App() {
       requestText: text.trim(),
       notes: noteText.trim() || undefined
     };
-    setLogs([newLog, ...logs]);
+    setLogs(prev => [newLog, ...prev]);
     setNoteText('');
     setCareRequestText('');
     setShowCareRequestModal(false);
@@ -1411,21 +1411,26 @@ function App() {
             <h1 className="text-sm font-extrabold tracking-wide text-monitor-text uppercase leading-tight" id="app-title">
               CareFlow 照護助理
             </h1>
-            <p className="text-[9px] text-monitor-dim tracking-wider font-mono flex items-center gap-1.5 leading-tight">
+            <p className="text-[9px] tracking-wider font-mono flex items-center gap-1.5 leading-tight">
               {gasUrl ? (
-                <span className={`inline-flex items-center gap-0.5 font-bold ${
-                  syncStatus === 'syncing' ? 'text-amber-500 animate-pulse' :
-                  syncStatus === 'success' ? 'text-emerald-500' :
-                  syncStatus === 'error' ? 'text-rose-500 animate-bounce' :
-                  'text-slate-400'
-                }`}>
-                  {syncStatus === 'syncing' ? '雲端同步中' : 
-                   syncStatus === 'success' ? '雲端連線成功' : 
-                   syncStatus === 'error' ? '雲端連線失敗' : 
-                   '雲端連線'}
-                </span>
+                syncStatus === 'idle' ? (
+                  <span className="inline-flex items-center gap-1 text-slate-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                    <span className="font-bold">雲端</span>
+                  </span>
+                ) : (
+                  <span className={`inline-flex items-center gap-0.5 font-bold ${
+                    syncStatus === 'syncing' ? 'text-amber-500 animate-pulse' :
+                    syncStatus === 'success' ? 'text-emerald-500' :
+                    'text-rose-500 animate-bounce'
+                  }`}>
+                    {syncStatus === 'syncing' ? '同步中...' : 
+                     syncStatus === 'success' ? '同步成功 ✓' : 
+                     '連線失敗 ✗'}
+                  </span>
+                )
               ) : (
-                <span>本地單機模式</span>
+                <span className="text-slate-400">本地單機</span>
               )}
             </p>
           </div>
