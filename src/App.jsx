@@ -396,7 +396,13 @@ function App() {
     return localStorage.getItem('careflow_session_pin') || '';
   });
   const [gasUrl, setGasUrl] = useState(() => {
-    return localStorage.getItem('careflow_gas_url') || '';
+    const saved = localStorage.getItem('careflow_gas_url');
+    if (saved === null) {
+      const defaultUrl = 'https://script.google.com/macros/s/AKfycbzKklSVbjRHFG601Z0tpXZyJCFZED5JAJSpiuSRcu9PgO3skBPFC1O2VzyYcshNzJdG/exec';
+      localStorage.setItem('careflow_gas_url', defaultUrl);
+      return defaultUrl;
+    }
+    return saved;
   });
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'success' | 'error'
 
@@ -2148,7 +2154,7 @@ function SettingsModal({
                   type="button"
                   onClick={() => {
                     if (window.confirm('確定要中斷與此雲端試算表的同步連結嗎？中斷後資料將僅儲存於本機裝置。')) {
-                      localStorage.removeItem('careflow_gas_url');
+                      localStorage.setItem('careflow_gas_url', '');
                       setGasUrl('');
                       setModalGasUrl('');
                       alert('已中斷雲端連線，改為本地單機模式。');
