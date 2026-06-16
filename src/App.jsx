@@ -26,6 +26,12 @@ import {
   ChevronUp
 } from 'lucide-react';
 
+// 判斷是否為觸控設備 (Coarse Pointer)
+const isTouchDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(pointer: coarse)').matches;
+};
+
 // 原生位元運算加密與解密工具函數 (支援 UTF-8 中文字元，防止 localStorage 直接外洩個資)
 function encrypt(text, key) {
   if (!text) return '';
@@ -860,6 +866,7 @@ function App() {
                       className="cursor-pointer"
                       style={{ WebkitTapHighlightColor: 'transparent' }}
                       onMouseEnter={() => {
+                        if (isTouchDevice()) return;
                         const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
                                         p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                         setActiveTooltip({
@@ -871,7 +878,10 @@ function App() {
                           value: `${label.split(' ')[0]}: ${p.val} ${unit}`
                         });
                       }}
-                      onMouseLeave={() => setActiveTooltip(null)}
+                      onMouseLeave={() => {
+                        if (isTouchDevice()) return;
+                        setActiveTooltip(null);
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         const isSame = activeTooltip && activeTooltip.chartId === key && activeTooltip.index === i;
@@ -1138,6 +1148,7 @@ function App() {
                       className="cursor-pointer"
                       style={{ WebkitTapHighlightColor: 'transparent' }}
                       onMouseEnter={() => {
+                        if (isTouchDevice()) return;
                         const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
                                         p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                         setActiveTooltip({
@@ -1149,7 +1160,10 @@ function App() {
                           value: `血壓: ${p.sbp}/${p.dbp} (MAP: ${p.map})`
                         });
                       }}
-                      onMouseLeave={() => setActiveTooltip(null)}
+                      onMouseLeave={() => {
+                        if (isTouchDevice()) return;
+                        setActiveTooltip(null);
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         const isSame = activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i;
@@ -1440,6 +1454,7 @@ function App() {
                         className="cursor-pointer"
                         style={{ WebkitTapHighlightColor: 'transparent' }}
                         onMouseEnter={() => {
+                          if (isTouchDevice()) return;
                           const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
                                           p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                           setActiveTooltip({
@@ -1452,7 +1467,10 @@ function App() {
                             avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
                           });
                         }}
-                        onMouseLeave={() => setActiveTooltip(null)}
+                        onMouseLeave={() => {
+                          if (isTouchDevice()) return;
+                          setActiveTooltip(null);
+                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           const isSame = activeTooltip && activeTooltip.chartId === 'urine' && activeTooltip.index === i;
