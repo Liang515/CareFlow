@@ -3240,11 +3240,6 @@ function App() {
                     value={careRequestText}
                     onChange={(e) => setCareRequestText(e.target.value)}
                     className="flex-1 py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-orange-400"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && careRequestText.trim()) {
-                        handleAddCareRequest(careRequestText, 'other');
-                      }
-                    }}
                   />
                   <button
                     onClick={() => handleAddCareRequest(careRequestText, 'other')}
