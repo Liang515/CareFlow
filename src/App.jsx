@@ -1744,16 +1744,13 @@ function App() {
       .map(([key, count]) => ({ key, name: categoryLabels[key] || '其他', count }))
       .sort((a, b) => b.count - a.count);
 
-    // 自行輸入的用藥與需求明細 (合併並降冪時間排序)
-    const customMedLogs = meds.filter(m => !PREDEFINED_MEDS.includes(m.medicationName));
-    const customReqLogs = requests.filter(r => r.requestCategory === 'other');
-    
-    const customLogs = [
-      ...customMedLogs.map(m => ({ ...m, categoryType: 'medication' })),
-      ...customReqLogs.map(r => ({ ...r, categoryType: 'care_request' }))
+    // 所有給藥與照護需求明細 (合併並降冪時間排序)
+    const allEventLogs = [
+      ...meds.map(m => ({ ...m, categoryType: 'medication' })),
+      ...requests.map(r => ({ ...r, categoryType: 'care_request' }))
     ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    const hasCustom = customLogs.length > 0;
+    const hasEvents = allEventLogs.length > 0;
     const maxMedCount = sortedMeds.length > 0 ? Math.max(...sortedMeds.map(m => m.count)) : 1;
     const maxCatCount = sortedCats.length > 0 ? Math.max(...sortedCats.map(c => c.count)) : 1;
 
@@ -1843,16 +1840,16 @@ function App() {
           </div>
         </div>
 
-        {/* 自由輸入的合併明細 (時間線降冪) */}
-        {hasCustom && (
+        {/* 照護與給藥紀錄時間線 (時間線降冪) */}
+        {hasEvents && (
           <div className="mt-4 border-t border-monitor-border pt-3.5 space-y-2.5 animate-slide-up">
             <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-              <span className="flex items-center gap-1">📋 自由輸入事件時間線 (按時間降冪)</span>
-              <span className="text-[10px] text-monitor-dim font-normal">共 {customLogs.length} 筆</span>
+              <span className="flex items-center gap-1">📋 照護與給藥紀錄時間線 (按時間降冪)</span>
+              <span className="text-[10px] text-monitor-dim font-normal">共 {allEventLogs.length} 筆</span>
             </div>
             
             <div className="space-y-1.5 max-h-60 overflow-y-auto no-scrollbar bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-              {customLogs.map((log) => {
+              {allEventLogs.map((log) => {
                 const logDate = new Date(log.timestamp);
                 const logTimeStr = `${String(logDate.getMonth() + 1).padStart(2, '0')}/${String(logDate.getDate()).padStart(2, '0')} ${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
                 const isMed = log.categoryType === 'medication';
