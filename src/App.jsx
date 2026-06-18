@@ -2142,6 +2142,26 @@ function App() {
   // 切換睡眠狀態
   const handleToggleSleepStatus = () => {
     const nextStatus = currentSleepStatus === 'asleep' ? 'awake' : 'asleep';
+    
+    // 計算前一次狀態持續時間
+    let noteText = nextStatus === 'asleep' ? '睡著' : '醒來';
+    const latestSleepLog = logs.find(l => l.type === 'event' && l.eventType === 'care_request' && l.requestCategory === 'sleep');
+    if (latestSleepLog) {
+      const lastTime = new Date(latestSleepLog.timestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - lastTime.getTime();
+      const diffMins = Math.max(0, Math.floor(diffMs / (1000 * 60)));
+      const hrs = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      const durationStr = hrs > 0 ? `${hrs} 小時 ${mins} 分` : `${mins} 分`;
+      
+      if (nextStatus === 'awake') {
+        noteText = `睡著持續：${durationStr}`;
+      } else {
+        noteText = `清醒持續：${durationStr}`;
+      }
+    }
+
     const newLog = {
       id: generateUniqueId(),
       timestamp: new Date().toISOString(),
@@ -2150,7 +2170,7 @@ function App() {
       requestCategory: 'sleep',
       requestText: nextStatus === 'asleep' ? '睡著' : '醒來',
       sleepStatus: nextStatus,
-      notes: nextStatus === 'asleep' ? '睡著' : '醒來'
+      notes: noteText
     };
     setLogs(prev => [newLog, ...prev]);
     uploadLogToCloud(newLog);
