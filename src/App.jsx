@@ -23,7 +23,8 @@ import {
   MessageSquarePlus,
   ChevronRight,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Maximize2
 } from 'lucide-react';
 
 // 判斷是否為觸控設備 (Coarse Pointer)
@@ -469,6 +470,7 @@ function App() {
   const [showMedModal, setShowMedModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCareRequestModal, setShowCareRequestModal] = useState(false);
+  const [expandedChart, setExpandedChart] = useState(null); // { type, key, strokeColor, label, unit }
   const [reportDuration, setReportDuration] = useState(24); // 預設 24 小時區間
   const [copySuccess, setCopySuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('vitals'); // 'vitals' or 'trends'
@@ -739,7 +741,7 @@ function App() {
   const isBpAlert = (sbp, dbp) => sbp > 140 || dbp > 90 || sbp < 90 || dbp < 55;
 
   // 繪製趨勢圖的 SVG 元件 (支援時間間距比例繪圖與時間標籤)
-  const renderSparkline = (key, strokeColor, label, unit) => {
+  const renderSparkline = (key, strokeColor, label, unit, isLarge = false) => {
     const data = logs
       .filter(l => l.type === 'vitals')
       .map(l => ({ val: l[key], time: new Date(l.timestamp) }))
@@ -755,10 +757,10 @@ function App() {
       );
     }
 
-    const width = 320;
-    const height = 90;
-    const paddingX = 16;
-    const paddingY = 16;
+    const width = isLarge ? 480 : 320;
+    const height = isLarge ? 180 : 90;
+    const paddingX = isLarge ? 24 : 16;
+    const paddingY = isLarge ? 24 : 16;
     
     const vals = data.map(d => d.val);
     const min = Math.min(...vals) - 2;
@@ -773,7 +775,7 @@ function App() {
     const points = data.map((d, index) => {
       const timeRatio = (d.time.getTime() - minTime) / timeRange;
       const x = paddingX + timeRatio * (width - paddingX * 2);
-      const y = height - paddingY - 8 - ((d.val - min) / valRange) * (height - paddingY * 2 - 16);
+      const y = height - paddingY - (isLarge ? 12 : 8) - ((d.val - min) / valRange) * (height - paddingY * 2 - (isLarge ? 24 : 16));
       return { x, y, val: d.val, time: d.time };
     });
 
@@ -784,7 +786,7 @@ function App() {
       showLabelFlags[points.length - 1] = true;
       let lastLabeledX = points[points.length - 1].x;
       for (let i = points.length - 2; i >= 0; i--) {
-        if (lastLabeledX - points[i].x > 30) {
+        if (lastLabeledX - points[i].x > (isLarge ? 45 : 30)) {
           showLabelFlags[i] = true;
           lastLabeledX = points[i].x;
         }
@@ -795,19 +797,35 @@ function App() {
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
           <span className="font-bold text-monitor-text">{label}</span>
-          <span className="text-[10px] text-monitor-dim">
-            最新: <strong className="text-monitor-text">{vals[vals.length - 1]}</strong> {unit} (區間: {Math.round(min)}-{Math.round(max)})
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-monitor-dim">
+              最新: <strong className="text-monitor-text">{vals[vals.length - 1]}</strong> {unit} (區間: {Math.round(min)}-{Math.round(max)})
+            </span>
+            {!isLarge && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedChart({ type: 'vitals', key, strokeColor, label, unit });
+                }}
+                className="p-1 hover:bg-slate-100 rounded-md text-monitor-dim hover:text-monitor-text transition"
+                title="放大圖表"
+              >
+                <Maximize2 size={12} />
+              </button>
+            )}
+          </div>
         </div>
         <div className="relative">
-          <svg className="w-full h-20" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+          <svg className={isLarge ? "w-full h-44" : "w-full h-20"} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 4} x2={width} y2={height/2 - 4} stroke="#f1f5f9" strokeDasharray="3 3" />
             
             {/* 繪製時間軸垂直格線與時間標籤 (防重疊) */}
             {(() => {
               let lastLabelX = -999;
+              const labelSpacing = isLarge ? 70 : 60;
               return points.map((p, i) => {
-                const showLabel = p.x - lastLabelX > 32;
+                const showLabel = p.x - lastLabelX > labelSpacing;
                 if (showLabel) {
                   lastLabelX = p.x;
                 }
@@ -818,11 +836,17 @@ function App() {
                       x={p.x}
                       y={height - 2}
                       textAnchor="middle"
-                      fontSize="7.5"
+                      fontSize={isLarge ? "8.5" : "7.5"}
                       fill="#64748b"
                       className="font-mono font-bold"
                     >
-                      {p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                      {(() => {
+                        const month = String(p.time.getMonth() + 1).padStart(2, '0');
+                        const day = String(p.time.getDate()).padStart(2, '0');
+                        const hour = String(p.time.getHours()).padStart(2, '0');
+                        const minute = String(p.time.getMinutes()).padStart(2, '0');
+                        return `${month}/${day} ${hour}:${minute}`;
+                      })()}
                     </text>
                   </g>
                 ) : null;
@@ -833,7 +857,7 @@ function App() {
               d={pathD}
               fill="none"
               stroke={strokeColor}
-              strokeWidth="2.5"
+              strokeWidth={isLarge ? "3" : "2.5"}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -843,18 +867,18 @@ function App() {
                   <circle
                     cx={p.x}
                     cy={p.y}
-                    r="4.5"
+                    r={isLarge ? "6" : "4.5"}
                     fill={strokeColor}
                     stroke="#ffffff"
-                    strokeWidth="2"
+                    strokeWidth={isLarge ? "2.5" : "2"}
                   />
                 )}
                 {showLabelFlags[i] && (
                   <text
                     x={p.x}
-                    y={p.y - 7}
+                    y={p.y - (isLarge ? 9 : 7)}
                     textAnchor="middle"
-                    fontSize="8.5"
+                    fontSize={isLarge ? "9.5" : "8.5"}
                     fontWeight="bold"
                     fill={strokeColor}
                     className="font-mono bg-white"
@@ -990,7 +1014,7 @@ function App() {
   };
 
   // 繪製血壓與平均壓合併趨勢圖的 SVG 元件 (支援時間間距比例與 SBP/MAP/DBP 三合一折線)
-  const renderBpSparkline = () => {
+  const renderBpSparkline = (isLarge = false) => {
     const data = logs
       .filter(l => l.type === 'vitals')
       .map(l => {
@@ -1011,10 +1035,10 @@ function App() {
       );
     }
 
-    const width = 320;
-    const height = 105;
-    const paddingX = 16;
-    const paddingY = 16;
+    const width = isLarge ? 480 : 320;
+    const height = isLarge ? 200 : 105;
+    const paddingX = isLarge ? 24 : 16;
+    const paddingY = isLarge ? 24 : 16;
 
     const sbps = data.map(d => d.sbp);
     const dbps = data.map(d => d.dbp);
@@ -1031,9 +1055,9 @@ function App() {
     const points = data.map((d, index) => {
       const timeRatio = (d.time.getTime() - minTime) / timeRange;
       const x = paddingX + timeRatio * (width - paddingX * 2);
-      const ySbp = height - paddingY - 10 - ((d.sbp - min) / valRange) * (height - paddingY * 2 - 20);
-      const yDbp = height - paddingY - 10 - ((d.dbp - min) / valRange) * (height - paddingY * 2 - 20);
-      const yMap = height - paddingY - 10 - ((d.map - min) / valRange) * (height - paddingY * 2 - 20);
+      const ySbp = height - paddingY - (isLarge ? 15 : 10) - ((d.sbp - min) / valRange) * (height - paddingY * 2 - (isLarge ? 30 : 20));
+      const yDbp = height - paddingY - (isLarge ? 15 : 10) - ((d.dbp - min) / valRange) * (height - paddingY * 2 - (isLarge ? 30 : 20));
+      const yMap = height - paddingY - (isLarge ? 15 : 10) - ((d.map - min) / valRange) * (height - paddingY * 2 - (isLarge ? 30 : 20));
       return { x, ySbp, yDbp, yMap, sbp: d.sbp, dbp: d.dbp, map: d.map, time: d.time };
     });
 
@@ -1046,7 +1070,7 @@ function App() {
       showLabelFlags[points.length - 1] = true;
       let lastLabeledX = points[points.length - 1].x;
       for (let i = points.length - 2; i >= 0; i--) {
-        if (lastLabeledX - points[i].x > 30) {
+        if (lastLabeledX - points[i].x > (isLarge ? 45 : 30)) {
           showLabelFlags[i] = true;
           lastLabeledX = points[i].x;
         }
@@ -1057,19 +1081,35 @@ function App() {
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
         <div className="flex justify-between items-center text-xs">
           <span className="font-bold text-monitor-text">血壓與平均壓趨勢 (收縮壓/平均壓/舒張壓)</span>
-          <span className="text-[10px] text-monitor-dim">
-            最新: <strong className="text-monitor-red">{sbps[sbps.length - 1]}</strong>/<strong className="text-monitor-purple">{maps[maps.length - 1]}</strong>/<strong className="text-slate-700">{dbps[dbps.length - 1]}</strong> mmHg
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-monitor-dim">
+              最新: <strong className="text-monitor-red">{sbps[sbps.length - 1]}</strong>/<strong className="text-monitor-purple">{maps[maps.length - 1]}</strong>/<strong className="text-slate-700">{dbps[dbps.length - 1]}</strong> mmHg
+            </span>
+            {!isLarge && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedChart({ type: 'bp' });
+                }}
+                className="p-1 hover:bg-slate-100 rounded-md text-monitor-dim hover:text-monitor-text transition"
+                title="放大圖表"
+              >
+                <Maximize2 size={12} />
+              </button>
+            )}
+          </div>
         </div>
         <div className="relative">
-          <svg className="w-full h-24" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+          <svg className={isLarge ? "w-full h-48" : "w-full h-24"} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 5} x2={width} y2={height/2 - 5} stroke="#f1f5f9" strokeDasharray="3 3" />
             
             {/* 時間軸垂直格線與時間標籤 */}
             {(() => {
               let lastLabelX = -999;
+              const labelSpacing = isLarge ? 70 : 60;
               return points.map((p, i) => {
-                const showLabel = p.x - lastLabelX > 32;
+                const showLabel = p.x - lastLabelX > labelSpacing;
                 if (showLabel) {
                   lastLabelX = p.x;
                 }
@@ -1080,11 +1120,17 @@ function App() {
                       x={p.x}
                       y={height - 2}
                       textAnchor="middle"
-                      fontSize="7.5"
+                      fontSize={isLarge ? "8.5" : "7.5"}
                       fill="#64748b"
                       className="font-mono font-bold"
                     >
-                      {p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                      {(() => {
+                        const month = String(p.time.getMonth() + 1).padStart(2, '0');
+                        const day = String(p.time.getDate()).padStart(2, '0');
+                        const hour = String(p.time.getHours()).padStart(2, '0');
+                        const minute = String(p.time.getMinutes()).padStart(2, '0');
+                        return `${month}/${day} ${hour}:${minute}`;
+                      })()}
                     </text>
                   </g>
                 ) : null;
@@ -1096,7 +1142,7 @@ function App() {
               d={pathSbp}
               fill="none"
               stroke="#ef4444"
-              strokeWidth="2"
+              strokeWidth={isLarge ? "2.5" : "2"}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -1105,7 +1151,7 @@ function App() {
               d={pathMap}
               fill="none"
               stroke="#8b5cf6"
-              strokeWidth="1.5"
+              strokeWidth={isLarge ? "2" : "1.5"}
               strokeDasharray="3 2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -1115,7 +1161,7 @@ function App() {
               d={pathDbp}
               fill="none"
               stroke="#475569"
-              strokeWidth="2"
+              strokeWidth={isLarge ? "2.5" : "2"}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -1123,26 +1169,26 @@ function App() {
               <g key={i}>
                 {/* SBP */}
                 {activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i && (
-                  <circle cx={p.x} cy={p.ySbp} r="4.5" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                  <circle cx={p.x} cy={p.ySbp} r={isLarge ? "6" : "4.5"} fill="#ef4444" stroke="#ffffff" strokeWidth={isLarge ? "2.5" : "2"} />
                 )}
                 {showLabelFlags[i] && (
-                  <text x={p.x} y={p.ySbp - 6} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
+                  <text x={p.x} y={p.ySbp - (isLarge ? 8 : 6)} textAnchor="middle" fontSize={isLarge ? "8.5" : "7.5"} fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
                 )}
                 
                 {/* MAP */}
                 {activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i && (
-                  <circle cx={p.x} cy={p.yMap} r="3.5" fill="#8b5cf6" stroke="#ffffff" strokeWidth="1.5" />
+                  <circle cx={p.x} cy={p.yMap} r={isLarge ? "5" : "3.5"} fill="#8b5cf6" stroke="#ffffff" strokeWidth={isLarge ? "2" : "1.5"} />
                 )}
                 {showLabelFlags[i] && (
-                  <text x={p.x} y={p.yMap - 5} textAnchor="middle" fontSize="7" fontWeight="bold" fill="#8b5cf6" className="font-mono">{p.map}</text>
+                  <text x={p.x} y={p.yMap - (isLarge ? 7 : 5)} textAnchor="middle" fontSize={isLarge ? "8" : "7"} fontWeight="bold" fill="#8b5cf6" className="font-mono">{p.map}</text>
                 )}
 
                 {/* DBP */}
                 {activeTooltip && activeTooltip.chartId === 'bp' && activeTooltip.index === i && (
-                  <circle cx={p.x} cy={p.yDbp} r="4.5" fill="#475569" stroke="#ffffff" strokeWidth="2" />
+                  <circle cx={p.x} cy={p.yDbp} r={isLarge ? "6" : "4.5"} fill="#475569" stroke="#ffffff" strokeWidth={isLarge ? "2.5" : "2"} />
                 )}
                 {showLabelFlags[i] && (
-                  <text x={p.x} y={p.yDbp + 9} textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
+                  <text x={p.x} y={p.yDbp + (isLarge ? 12 : 9)} textAnchor="middle" fontSize={isLarge ? "8.5" : "7.5"} fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
                 )}
 
                 {/* 增加觸控/懸停感應區 (全高垂直切片，無死角) */}
@@ -1272,7 +1318,7 @@ function App() {
   };
 
   // 繪製尿量排泄紀錄的柱狀圖 SVG 元件 (支援時間間距比例與顏色對照)
-  const renderUrineChart = () => {
+  const renderUrineChart = (isLarge = false) => {
     const data = logs
       .filter(l => l.type === 'event' && l.eventType === 'urine')
       .map(l => ({ val: Number(l.volumeCc) || 0, time: new Date(l.timestamp), color: l.color }))
@@ -1288,10 +1334,10 @@ function App() {
       );
     }
 
-    const width = 320;
-    const height = 95;
-    const paddingX = 16;
-    const paddingY = 16;
+    const width = isLarge ? 480 : 320;
+    const height = isLarge ? 180 : 95;
+    const paddingX = isLarge ? 24 : 16;
+    const paddingY = isLarge ? 24 : 16;
 
     const vals = data.map(d => d.val);
     const maxVal = Math.max(...vals, 100); // 至少 100 做比例
@@ -1304,7 +1350,7 @@ function App() {
     const points = data.map((d, index) => {
       const timeRatio = data.length === 1 ? 0.5 : (d.time.getTime() - minTime) / timeRange;
       const x = paddingX + timeRatio * (width - paddingX * 2);
-      const barHeight = (d.val / maxVal) * (height - paddingY * 2 - 12);
+      const barHeight = (d.val / maxVal) * (height - paddingY * 2 - (isLarge ? 18 : 12));
       const y = height - paddingY - 2 - barHeight;
       return { x, y, val: d.val, time: d.time, barHeight, color: d.color };
     });
@@ -1339,7 +1385,7 @@ function App() {
       showLabelFlags[points.length - 1] = true;
       let lastLabeledX = points[points.length - 1].x;
       for (let i = points.length - 2; i >= 0; i--) {
-        if (lastLabeledX - points[i].x > 30) {
+        if (lastLabeledX - points[i].x > (isLarge ? 45 : 30)) {
           showLabelFlags[i] = true;
           lastLabeledX = points[i].x;
         }
@@ -1372,8 +1418,8 @@ function App() {
 
     const movingAverages = points.map((p, i) => {
       const avgRate = movingAverageRates[i];
-      const rateHeight = (avgRate / maxVal) * (height - paddingY * 2 - 12);
-      const y = height - paddingY - 2 - Math.max(0, Math.min(height - paddingY * 2 - 12, rateHeight));
+      const rateHeight = (avgRate / maxVal) * (height - paddingY * 2 - (isLarge ? 18 : 12));
+      const y = height - paddingY - 2 - Math.max(0, Math.min(height - paddingY * 2 - (isLarge ? 18 : 12), rateHeight));
       return { x: p.x, y, avgRate };
     });
     const pathD = `M ${movingAverages.map(ma => `${ma.x} ${ma.y}`).join(' L ')}`;
@@ -1388,19 +1434,35 @@ function App() {
               每小時尿量 (3次移動平均)
             </span>
           </span>
-          <span className="text-[10px] text-monitor-dim whitespace-nowrap">
-            總量: <strong className="text-cyan-600 font-mono">{totalUrineVol}</strong> cc | 平均: <strong className="text-cyan-600 font-mono">{avgHourlyUrine}</strong> cc/hr
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-monitor-dim whitespace-nowrap">
+              總量: <strong className="text-cyan-600 font-mono">{totalUrineVol}</strong> cc | 平均: <strong className="text-cyan-600 font-mono">{avgHourlyUrine}</strong> cc/hr
+            </span>
+            {!isLarge && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedChart({ type: 'urine' });
+                }}
+                className="p-1 hover:bg-slate-100 rounded-md text-monitor-dim hover:text-monitor-text transition"
+                title="放大圖表"
+              >
+                <Maximize2 size={12} />
+              </button>
+            )}
+          </div>
         </div>
         <div className="relative">
-          <svg className="w-full h-22" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+          <svg className={isLarge ? "w-full h-44" : "w-full h-22"} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height - paddingY - 2} x2={width} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="1" />
             
             {/* 時間軸垂直格線與時間標籤 */}
             {(() => {
               let lastLabelX = -999;
+              const labelSpacing = isLarge ? 70 : 60;
               return points.map((p, i) => {
-                const showLabel = p.x - lastLabelX > 32;
+                const showLabel = p.x - lastLabelX > labelSpacing;
                 if (showLabel) {
                   lastLabelX = p.x;
                 }
@@ -1411,11 +1473,17 @@ function App() {
                       x={p.x}
                       y={height - 2}
                       textAnchor="middle"
-                      fontSize="7.5"
+                      fontSize={isLarge ? "8.5" : "7.5"}
                       fill="#64748b"
                       className="font-mono font-bold"
                     >
-                      {p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                      {(() => {
+                        const month = String(p.time.getMonth() + 1).padStart(2, '0');
+                        const day = String(p.time.getDate()).padStart(2, '0');
+                        const hour = String(p.time.getHours()).padStart(2, '0');
+                        const minute = String(p.time.getMinutes()).padStart(2, '0');
+                        return `${month}/${day} ${hour}:${minute}`;
+                      })()}
                     </text>
                   </g>
                 ) : null;
@@ -1424,7 +1492,7 @@ function App() {
 
             {/* 繪製柱狀圖 */}
             {points.map((p, i) => {
-              const barWidth = Math.max(8, Math.min(16, 120 / (data.length || 10)));
+              const barWidth = Math.max(isLarge ? 12 : 8, Math.min(isLarge ? 24 : 16, (isLarge ? 180 : 120) / (data.length || 10)));
               return (
                 <g key={`bar-${i}`}>
                   <rect
@@ -1440,9 +1508,9 @@ function App() {
                   {showLabelFlags[i] && (
                     <text
                       x={p.x}
-                      y={p.y - 8}
+                      y={p.y - (isLarge ? 10 : 8)}
                       textAnchor="middle"
-                      fontSize="7.5"
+                      fontSize={isLarge ? "8.5" : "7.5"}
                       fontWeight="bold"
                       fill="#334155"
                       className="font-mono"
@@ -1527,7 +1595,7 @@ function App() {
                       key={`ma-dot-${i}`}
                       cx={ma.x}
                       cy={ma.y}
-                      r="4"
+                      r={isLarge ? "5.5" : "4"}
                       fill="#06b6d4"
                       stroke="#ffffff"
                       strokeWidth="2"
@@ -1616,6 +1684,211 @@ function App() {
             )}
           </svg>
         </div>
+      </div>
+    );
+  };
+
+  // 繪製給藥與照護事件的頻次統計區塊
+  const renderEventStatistics = () => {
+    // 篩選給藥與照護需求紀錄
+    const meds = logs.filter(l => l.type === 'event' && l.eventType === 'medication');
+    const requests = logs.filter(l => l.type === 'event' && l.eventType === 'care_request');
+
+    // 臨床預設藥物清單
+    const PREDEFINED_MEDS = [
+      '一般止痛藥 (如普拿疼)',
+      '強效止痛藥 (嗎啡/貼片)',
+      '抗生素',
+      '點滴/營養劑',
+      '胃腸/解痙/止吐藥',
+      '鎮靜安眠藥'
+    ];
+
+    // 統計給藥頻次（預設藥物 vs 其他）
+    const medCounts = {};
+    meds.forEach(m => {
+      const name = PREDEFINED_MEDS.includes(m.medicationName) ? m.medicationName : '其他';
+      medCounts[name] = (medCounts[name] || 0) + 1;
+    });
+
+    // 轉為陣列並排序
+    const sortedMeds = Object.entries(medCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // 統計照護需求分類頻次
+    const categoryLabels = { 
+      nutrition: '飲食', 
+      position: '姿勢', 
+      environment: '環境', 
+      daily_care: '日常照護', 
+      other: '其他' 
+    };
+    const reqCatCounts = {
+      nutrition: 0,
+      position: 0,
+      environment: 0,
+      daily_care: 0,
+      other: 0
+    };
+    requests.forEach(r => {
+      const cat = r.requestCategory || 'other';
+      if (reqCatCounts[cat] !== undefined) {
+        reqCatCounts[cat]++;
+      } else {
+        reqCatCounts.other++;
+      }
+    });
+
+    const sortedCats = Object.entries(reqCatCounts)
+      .map(([key, count]) => ({ key, name: categoryLabels[key] || '其他', count }))
+      .sort((a, b) => b.count - a.count);
+
+    // 自行輸入的用藥與需求明細 (合併並降冪時間排序)
+    const customMedLogs = meds.filter(m => !PREDEFINED_MEDS.includes(m.medicationName));
+    const customReqLogs = requests.filter(r => r.requestCategory === 'other');
+    
+    const customLogs = [
+      ...customMedLogs.map(m => ({ ...m, categoryType: 'medication' })),
+      ...customReqLogs.map(r => ({ ...r, categoryType: 'care_request' }))
+    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    const hasCustom = customLogs.length > 0;
+    const maxMedCount = sortedMeds.length > 0 ? Math.max(...sortedMeds.map(m => m.count)) : 1;
+    const maxCatCount = sortedCats.length > 0 ? Math.max(...sortedCats.map(c => c.count)) : 1;
+
+    return (
+      <div className="bg-monitor-card border border-monitor-border rounded-xl p-4 shadow-sm space-y-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5 pb-2 border-b border-monitor-border">
+          <HandHeart size={14} className="text-monitor-purple" /> 照護事件頻次統計 (次數分析)
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 給藥處置統計 */}
+          <div className="space-y-2.5">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+              <span className="flex items-center gap-1">💊 給藥紀錄統計</span>
+              <span className="text-[10px] text-monitor-dim">共 {meds.length} 次</span>
+            </div>
+            
+            {sortedMeds.length === 0 ? (
+              <div className="text-[11px] text-monitor-dim py-4 text-center bg-slate-50 rounded-lg border border-slate-100">
+                目前尚無給藥紀錄
+              </div>
+            ) : (
+              <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 max-h-72 overflow-y-auto no-scrollbar">
+                {sortedMeds.map((m, i) => {
+                  const pct = (m.count / maxMedCount) * 100;
+                  
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between text-[11px] font-medium text-slate-600 items-center">
+                          <span className="truncate max-w-[200px] flex items-center gap-1 font-bold">
+                            {m.name}
+                          </span>
+                          <span className="font-bold text-monitor-purple font-mono">{m.count} 次</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-monitor-purple h-full rounded-full transition-all duration-500" 
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 照護需求統計 */}
+          <div className="space-y-2.5">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+              <span className="flex items-center gap-1">🤲 照護需求統計</span>
+              <span className="text-[10px] text-monitor-dim">共 {requests.length} 次</span>
+            </div>
+            
+            {requests.length === 0 ? (
+              <div className="text-[11px] text-monitor-dim py-4 text-center bg-slate-50 rounded-lg border border-slate-100">
+                目前尚無照護需求紀錄
+              </div>
+            ) : (
+              <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 max-h-72 overflow-y-auto no-scrollbar">
+                {sortedCats.map((c, i) => {
+                  const pct = (c.count / maxCatCount) * 100;
+
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between text-[11px] font-medium text-slate-600 items-center">
+                          <span className="flex items-center gap-1 font-bold">
+                            {c.name}
+                          </span>
+                          <span className="font-bold text-orange-600 font-mono">{c.count} 次</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-orange-500 h-full rounded-full transition-all duration-500" 
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 自由輸入的合併明細 (時間線降冪) */}
+        {hasCustom && (
+          <div className="mt-4 border-t border-monitor-border pt-3.5 space-y-2.5 animate-slide-up">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+              <span className="flex items-center gap-1">📋 自由輸入事件時間線 (按時間降冪)</span>
+              <span className="text-[10px] text-monitor-dim font-normal">共 {customLogs.length} 筆</span>
+            </div>
+            
+            <div className="space-y-1.5 max-h-60 overflow-y-auto no-scrollbar bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+              {customLogs.map((log) => {
+                const logDate = new Date(log.timestamp);
+                const logTimeStr = `${String(logDate.getMonth() + 1).padStart(2, '0')}/${String(logDate.getDate()).padStart(2, '0')} ${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
+                const isMed = log.categoryType === 'medication';
+                
+                return (
+                  <div key={log.id} className="text-[10px] bg-white border border-slate-200/60 p-2 rounded shadow-sm flex flex-col gap-1">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex items-start gap-1.5 min-w-0">
+                        {isMed ? (
+                          <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                            給藥處置
+                          </span>
+                        ) : (
+                          <span className="bg-orange-50 border border-orange-100 text-orange-600 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                            照護需求
+                          </span>
+                        )}
+                        <span className="font-bold text-slate-700 break-words min-w-0 flex-1 leading-normal">
+                          {isMed ? log.medicationName : log.requestText}
+                        </span>
+                      </div>
+                      <span className="font-mono text-slate-400 font-semibold text-[9px] flex-shrink-0 pt-0.5">
+                        {logTimeStr}
+                      </span>
+                    </div>
+                    {log.notes && (
+                      <div className="text-[9px] text-slate-400 pl-1.5 border-l border-slate-200 mt-0.5 break-words">
+                        備註: {log.notes}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -2271,6 +2544,7 @@ function App() {
             {renderSparkline('rr', '#f59e0b', '呼吸趨勢 (Respiratory Rate)', 'rpm')}
             {renderBpSparkline()}
             {renderUrineChart()}
+            {renderEventStatistics()}
           </div>
         )}
 
@@ -3256,7 +3530,6 @@ function App() {
         </div>
       )}
 
-      {/* 設定與受測者資訊編輯對話框 */}
       <SettingsModal
         show={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
@@ -3273,6 +3546,50 @@ function App() {
           }
         }}
       />
+
+      {/* 歷史趨勢圖表展開大圖對話框 */}
+      {expandedChart && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4 transition-opacity animate-fade-in" 
+          onClick={() => setExpandedChart(null)}
+        >
+          <div 
+            className="bg-monitor-card border border-monitor-border rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl animate-slide-up" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
+              <h3 className="text-sm font-bold text-monitor-text flex items-center gap-1.5">
+                {expandedChart.type === 'vitals' && `${expandedChart.label} 歷史趨勢大圖`}
+                {expandedChart.type === 'bp' && '血壓與平均壓趨勢大圖'}
+                {expandedChart.type === 'urine' && '尿量排泄趨勢大圖'}
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setExpandedChart(null)}
+                className="text-monitor-dim hover:text-monitor-text transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-2 bg-monitor-bg rounded-xl border border-monitor-border max-h-[70vh] overflow-y-auto no-scrollbar">
+              {expandedChart.type === 'vitals' && renderSparkline(expandedChart.key, expandedChart.strokeColor, expandedChart.label, expandedChart.unit, true)}
+              {expandedChart.type === 'bp' && renderBpSparkline(true)}
+              {expandedChart.type === 'urine' && renderUrineChart(true)}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setExpandedChart(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+              >
+                關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
