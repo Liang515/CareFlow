@@ -81,3 +81,16 @@
 .text-\[10px\] { font-size: calc(10px * var(--font-scale)) !important; }
 .text-\[11px\] { font-size: calc(11px * var(--font-scale)) !important; }
 
+/* 解決行動端 (特別是 iOS Safari) 點擊輸入框會自動縮放畫面的問題 (字型大於或等於 16px 可防止自動縮放) */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="email"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
