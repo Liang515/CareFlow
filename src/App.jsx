@@ -1696,7 +1696,7 @@ function App() {
 
     // 篩選所有睡眠事件，並依時間由舊到新排序
     const sleepLogs = logs
-      .filter(l => l.type === 'event' && l.eventType === 'sleep')
+      .filter(l => l.type === 'event' && l.eventType === 'care_request' && l.requestCategory === 'sleep')
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
     // 找到 startTime 之前的最後一個睡眠狀態，作為起始狀態
@@ -1819,7 +1819,31 @@ function App() {
 
   // 繪製給藥與照護事件的頻次統計區塊
   const renderEventStatistics = () => {
+    // 篩選給藥與照護需求紀錄
+    const meds = logs.filter(l => l.type === 'event' && l.eventType === 'medication');
     const requests = logs.filter(l => l.type === 'event' && l.eventType === 'care_request');
+
+    // 臨床預設藥物清單
+    const PREDEFINED_MEDS = [
+      '一般止痛藥 (如普拿疼)',
+      '強效止痛藥 (嗎啡/貼片)',
+      '抗生素',
+      '點滴/營養劑',
+      '胃腸/解痙/止吐藥',
+      '鎮靜安眠藥'
+    ];
+
+    // 統計給藥頻次（預設藥物 vs 其他）
+    const medCounts = {};
+    meds.forEach(m => {
+      const name = PREDEFINED_MEDS.includes(m.medicationName) ? m.medicationName : '其他';
+      medCounts[name] = (medCounts[name] || 0) + 1;
+    });
+
+    // 轉為陣列並排序
+    const sortedMeds = Object.entries(medCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
 
     // 統計照護需求分類頻次
     const categoryLabels = { 
@@ -1837,6 +1861,7 @@ function App() {
       other: 0
     };
     requests.forEach(r => {
+      if (r.requestCategory === 'sleep') return; // 排除睡眠狀態的次數統計，讓它在獨立睡眠分佈圖呈現即可
       const cat = r.requestCategory || 'other';
       if (reqCatCounts[cat] !== undefined) {
         reqCatCounts[cat]++;
@@ -1849,65 +1874,107 @@ function App() {
       .map(([key, count]) => ({ key, name: categoryLabels[key] || '其他', count }))
       .sort((a, b) => b.count - a.count);
 
-    // 所有照護需求與睡眠明細 (合併並降冪時間排序)
+    // 所有給藥、照護需求與睡眠明細 (合併並降冪時間排序)
     const allEventLogs = [
-      ...requests.map(r => ({ ...r, categoryType: 'care_request' })),
-      ...logs.filter(l => l.type === 'event' && l.eventType === 'sleep').map(s => ({ ...s, categoryType: 'sleep' }))
+      ...meds.map(m => ({ ...m, categoryType: 'medication' })),
+      ...requests.map(r => ({ ...r, categoryType: 'care_request' }))
     ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     const hasEvents = allEventLogs.length > 0;
+    const maxMedCount = sortedMeds.length > 0 ? Math.max(...sortedMeds.map(m => m.count)) : 1;
     const maxCatCount = sortedCats.length > 0 ? Math.max(...sortedCats.map(c => c.count)) : 1;
 
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-4 shadow-sm space-y-4">
         <h3 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5 pb-2 border-b border-monitor-border">
-          <HandHeart size={14} className="text-orange-500" /> 照護需求統計 (次數分析)
+          <HandHeart size={14} className="text-monitor-purple" /> 照護事件頻次統計 (次數分析)
         </h3>
 
-        {/* 照護需求統計 - 單欄寬度 */}
-        <div className="space-y-2.5">
-          <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-            <span className="flex items-center gap-1">🤲 照護需求統計</span>
-            <span className="text-[10px] text-monitor-dim">共 {requests.length} 次</span>
-          </div>
-          
-          {requests.length === 0 ? (
-            <div className="text-[11px] text-monitor-dim py-4 text-center bg-slate-50 rounded-lg border border-slate-100">
-              目前尚無照護需求紀錄
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 給藥處置統計 */}
+          <div className="space-y-2.5">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+              <span className="flex items-center gap-1">💊 給藥紀錄統計</span>
+              <span className="text-[10px] text-monitor-dim">共 {meds.length} 次</span>
             </div>
-          ) : (
-            <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 max-h-72 overflow-y-auto no-scrollbar">
-              {sortedCats.map((c, i) => {
-                const pct = (c.count / maxCatCount) * 100;
-
-                return (
-                  <div key={i} className="space-y-1">
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between text-[11px] font-medium text-slate-600 items-center">
-                        <span className="flex items-center gap-1 font-bold">
-                          {c.name}
-                        </span>
-                        <span className="font-bold text-orange-600 font-mono">{c.count} 次</span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-orange-500 h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${pct}%` }}
-                        />
+            
+            {sortedMeds.length === 0 ? (
+              <div className="text-[11px] text-monitor-dim py-4 text-center bg-slate-50 rounded-lg border border-slate-100">
+                目前尚無給藥紀錄
+              </div>
+            ) : (
+              <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 max-h-72 overflow-y-auto no-scrollbar">
+                {sortedMeds.map((m, i) => {
+                  const pct = (m.count / maxMedCount) * 100;
+                  
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between text-[11px] font-medium text-slate-600 items-center">
+                          <span className="truncate max-w-[200px] flex items-center gap-1 font-bold">
+                            {m.name}
+                          </span>
+                          <span className="font-bold text-monitor-purple font-mono">{m.count} 次</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-monitor-purple h-full rounded-full transition-all duration-500" 
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 照護需求統計 */}
+          <div className="space-y-2.5">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+              <span className="flex items-center gap-1">🤲 照護需求統計</span>
+              <span className="text-[10px] text-monitor-dim">共 {requests.filter(r => r.requestCategory !== 'sleep').length} 次</span>
             </div>
-          )}
+            
+            {requests.filter(r => r.requestCategory !== 'sleep').length === 0 ? (
+              <div className="text-[11px] text-monitor-dim py-4 text-center bg-slate-50 rounded-lg border border-slate-100">
+                目前尚無照護需求紀錄
+              </div>
+            ) : (
+              <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 max-h-72 overflow-y-auto no-scrollbar">
+                {sortedCats.map((c, i) => {
+                  const pct = (c.count / maxCatCount) * 100;
+
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between text-[11px] font-medium text-slate-600 items-center">
+                          <span className="flex items-center gap-1 font-bold">
+                            {c.name}
+                          </span>
+                          <span className="font-bold text-orange-600 font-mono">{c.count} 次</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-orange-500 h-full rounded-full transition-all duration-500" 
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* 照護與睡眠事件時間線 (時間線降冪) */}
+        {/* 照護與給藥事件時間線 (時間線降冪) */}
         {hasEvents && (
           <div className="mt-4 border-t border-monitor-border pt-3.5 space-y-2.5 animate-slide-up">
             <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-              <span className="flex items-center gap-1">📋 照護與睡眠事件時間線 (按時間降冪)</span>
+              <span className="flex items-center gap-1">📋 照護與給藥事件時間線 (按時間降冪)</span>
               <span className="text-[10px] text-monitor-dim font-normal">共 {allEventLogs.length} 筆</span>
             </div>
             
@@ -1915,13 +1982,18 @@ function App() {
               {allEventLogs.map((log) => {
                 const logDate = new Date(log.timestamp);
                 const logTimeStr = `${String(logDate.getMonth() + 1).padStart(2, '0')}/${String(logDate.getDate()).padStart(2, '0')} ${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
-                const isSleep = log.categoryType === 'sleep';
+                const isMed = log.categoryType === 'medication';
+                const isSleep = log.requestCategory === 'sleep';
                 
                 return (
                   <div key={log.id} className="text-[10px] bg-white border border-slate-200/60 p-2 rounded shadow-sm flex flex-col gap-1">
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex items-start gap-1.5 min-w-0">
-                        {isSleep ? (
+                        {isMed ? (
+                          <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                            給藥處置
+                          </span>
+                        ) : isSleep ? (
                           <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
                             睡眠狀態
                           </span>
@@ -1931,7 +2003,7 @@ function App() {
                           </span>
                         )}
                         <span className="font-bold text-slate-700 break-words min-w-0 flex-1 leading-normal">
-                          {isSleep ? (log.sleepStatus === 'asleep' ? '進入睡眠 (睡著)' : '恢復清醒 (醒來)') : log.requestText}
+                          {isMed ? log.medicationName : isSleep ? (log.sleepStatus === 'asleep' ? '進入睡眠 (睡著)' : '恢復清醒 (醒來)') : log.requestText}
                         </span>
                       </div>
                       <span className="font-mono text-slate-400 font-semibold text-[9px] flex-shrink-0 pt-0.5">
@@ -2041,7 +2113,7 @@ function App() {
 
   // 取得最新睡眠狀態
   const getLatestSleepStatus = () => {
-    const latestSleep = logs.find(l => l.type === 'event' && l.eventType === 'sleep');
+    const latestSleep = logs.find(l => l.type === 'event' && l.eventType === 'care_request' && l.requestCategory === 'sleep');
     return latestSleep ? latestSleep.sleepStatus : 'awake';
   };
   const currentSleepStatus = getLatestSleepStatus();
@@ -2053,7 +2125,9 @@ function App() {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
       type: 'event',
-      eventType: 'sleep',
+      eventType: 'care_request',
+      requestCategory: 'sleep',
+      requestText: nextStatus === 'asleep' ? '睡著' : '醒來',
       sleepStatus: nextStatus,
       notes: nextStatus === 'asleep' ? '睡著' : '醒來'
     };
@@ -2982,6 +3056,13 @@ function App() {
           <Droplet size={13} className="fill-monitor-cyan/10" /> 尿量
         </button>
 
+        <button
+          type="button"
+          onClick={() => setShowMedModal(true)}
+          className="py-3 px-3 bg-purple-50 border border-purple-100 text-monitor-purple font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+        >
+          <Pill size={13} /> 用藥
+        </button>
         <button
           type="button"
           onClick={() => setShowCareRequestModal(true)}
