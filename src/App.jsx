@@ -24,7 +24,8 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  Maximize2
+  Maximize2,
+  Moon
 } from 'lucide-react';
 
 // 判斷是否為觸控設備 (Coarse Pointer)
@@ -1688,6 +1689,134 @@ function App() {
     );
   };
 
+  // 繪製睡眠與清醒時間分佈圖卡
+  const renderSleepTimeline = () => {
+    const now = new Date();
+    const startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 過去 24 小時
+
+    // 篩選所有睡眠事件，並依時間由舊到新排序
+    const sleepLogs = logs
+      .filter(l => l.type === 'event' && l.eventType === 'sleep')
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    // 找到 startTime 之前的最後一個睡眠狀態，作為起始狀態
+    let initialStatus = 'awake';
+    const logsBeforeStart = sleepLogs.filter(l => new Date(l.timestamp) < startTime);
+    if (logsBeforeStart.length > 0) {
+      initialStatus = logsBeforeStart[logsBeforeStart.length - 1].sleepStatus;
+    } else if (sleepLogs.length > 0) {
+      initialStatus = sleepLogs[0].sleepStatus === 'asleep' ? 'awake' : 'asleep';
+    }
+
+    // 篩選 startTime 到 now 之間的事件
+    const logsInWindow = sleepLogs.filter(l => {
+      const t = new Date(l.timestamp);
+      return t >= startTime && t <= now;
+    });
+
+    const intervals = [];
+    let currentStart = startTime;
+    let currentStatus = initialStatus;
+
+    logsInWindow.forEach(log => {
+      const logTime = new Date(log.timestamp);
+      if (logTime.getTime() > currentStart.getTime()) {
+        intervals.push({
+          start: currentStart,
+          end: logTime,
+          status: currentStatus
+        });
+      }
+      currentStart = logTime;
+      currentStatus = log.sleepStatus;
+    });
+
+    // 最後一段到目前時間
+    if (now.getTime() > currentStart.getTime()) {
+      intervals.push({
+        start: currentStart,
+        end: now,
+        status: currentStatus
+      });
+    }
+
+    // 計算累計時間
+    let totalSleepMs = 0;
+    let totalAwakeMs = 0;
+    intervals.forEach(inv => {
+      const dur = inv.end.getTime() - inv.start.getTime();
+      if (inv.status === 'asleep') {
+        totalSleepMs += dur;
+      } else {
+        totalAwakeMs += dur;
+      }
+    });
+
+    const sleepHrs = Math.floor(totalSleepMs / (1000 * 60 * 60));
+    const sleepMins = Math.round((totalSleepMs % (1000 * 60 * 60)) / (1000 * 60));
+    const awakeHrs = Math.floor(totalAwakeMs / (1000 * 60 * 60));
+    const awakeMins = Math.round((totalAwakeMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    // 時間格式化輔助
+    const formatTime = (date) => {
+      return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    };
+
+    return (
+      <div className="bg-monitor-card border border-monitor-border rounded-xl p-4 shadow-sm space-y-4 animate-fade-in">
+        <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
+            <Moon size={14} className="text-indigo-500 fill-indigo-500/10" /> 睡眠與清醒時間分佈 (過去 24 小時)
+          </h3>
+          <span className="text-[10px] text-monitor-dim font-bold">
+            睡眠: {sleepHrs}小時{sleepMins}分 | 清醒: {awakeHrs}小時{awakeMins}分
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {/* 分段進度條 */}
+          <div className="w-full h-7 rounded-lg overflow-hidden flex bg-slate-100 border border-slate-200 shadow-inner">
+            {intervals.map((inv, idx) => {
+              const pct = ((inv.end.getTime() - inv.start.getTime()) / (24 * 60 * 60 * 1000)) * 100;
+              if (pct <= 0.01) return null; // 忽略極微小區間
+              const isAsleep = inv.status === 'asleep';
+              return (
+                <div
+                  key={idx}
+                  className={`${isAsleep ? 'bg-indigo-600' : 'bg-amber-400'} h-full relative group transition-all duration-300`}
+                  style={{ width: `${pct}%` }}
+                  title={`${isAsleep ? '睡著' : '清醒'}: ${formatTime(inv.start)} - ${formatTime(inv.end)}`}
+                >
+                  {pct > 8 && (
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-sm select-none">
+                      {isAsleep ? '🛌' : '☀️'}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 時間刻度 */}
+          <div className="flex justify-between text-[9px] text-monitor-dim font-bold px-0.5">
+            <span>24h前 ({formatTime(startTime)})</span>
+            <span>現在 ({formatTime(now)})</span>
+          </div>
+
+          {/* 圖例 */}
+          <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-600 pt-1">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" /> 睡著中
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> 清醒中
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // 繪製給藥與照護事件的頻次統計區塊
   const renderEventStatistics = () => {
     // 篩選給藥與照護需求紀錄
@@ -1744,10 +1873,11 @@ function App() {
       .map(([key, count]) => ({ key, name: categoryLabels[key] || '其他', count }))
       .sort((a, b) => b.count - a.count);
 
-    // 所有給藥與照護需求明細 (合併並降冪時間排序)
+    // 所有給藥、照護需求與睡眠明細 (合併並降冪時間排序)
     const allEventLogs = [
       ...meds.map(m => ({ ...m, categoryType: 'medication' })),
-      ...requests.map(r => ({ ...r, categoryType: 'care_request' }))
+      ...requests.map(r => ({ ...r, categoryType: 'care_request' })),
+      ...logs.filter(l => l.type === 'event' && l.eventType === 'sleep').map(s => ({ ...s, categoryType: 'sleep' }))
     ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     const hasEvents = allEventLogs.length > 0;
@@ -1844,7 +1974,7 @@ function App() {
         {hasEvents && (
           <div className="mt-4 border-t border-monitor-border pt-3.5 space-y-2.5 animate-slide-up">
             <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-              <span className="flex items-center gap-1">📋 照護與給藥紀錄時間線 (按時間降冪)</span>
+              <span className="flex items-center gap-1">📋 照護、給藥與睡眠事件時間線 (按時間降冪)</span>
               <span className="text-[10px] text-monitor-dim font-normal">共 {allEventLogs.length} 筆</span>
             </div>
             
@@ -1853,6 +1983,7 @@ function App() {
                 const logDate = new Date(log.timestamp);
                 const logTimeStr = `${String(logDate.getMonth() + 1).padStart(2, '0')}/${String(logDate.getDate()).padStart(2, '0')} ${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
                 const isMed = log.categoryType === 'medication';
+                const isSleep = log.categoryType === 'sleep';
                 
                 return (
                   <div key={log.id} className="text-[10px] bg-white border border-slate-200/60 p-2 rounded shadow-sm flex flex-col gap-1">
@@ -1862,13 +1993,17 @@ function App() {
                           <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
                             給藥處置
                           </span>
+                        ) : isSleep ? (
+                          <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                            睡眠狀態
+                          </span>
                         ) : (
                           <span className="bg-orange-50 border border-orange-100 text-orange-600 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
                             照護需求
                           </span>
                         )}
                         <span className="font-bold text-slate-700 break-words min-w-0 flex-1 leading-normal">
-                          {isMed ? log.medicationName : log.requestText}
+                          {isMed ? log.medicationName : isSleep ? (log.sleepStatus === 'asleep' ? '進入睡眠 (睡著)' : '恢復清醒 (醒來)') : log.requestText}
                         </span>
                       </div>
                       <span className="font-mono text-slate-400 font-semibold text-[9px] flex-shrink-0 pt-0.5">
@@ -1974,6 +2109,27 @@ function App() {
     setNoteText('');
     setCareRequestText('');
     setShowCareRequestModal(false);
+  };
+
+  // 取得最新睡眠狀態
+  const getLatestSleepStatus = () => {
+    const latestSleep = logs.find(l => l.type === 'event' && l.eventType === 'sleep');
+    return latestSleep ? latestSleep.sleepStatus : 'awake';
+  };
+  const currentSleepStatus = getLatestSleepStatus();
+
+  // 切換睡眠狀態
+  const handleToggleSleepStatus = () => {
+    const nextStatus = currentSleepStatus === 'asleep' ? 'awake' : 'asleep';
+    const newLog = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      type: 'event',
+      eventType: 'sleep',
+      sleepStatus: nextStatus,
+      notes: nextStatus === 'asleep' ? '睡著' : '醒來'
+    };
+    setLogs(prev => [newLog, ...prev]);
     uploadLogToCloud(newLog);
   };
 
@@ -2422,7 +2578,29 @@ function App() {
 
         {/* 2. 生理數據區塊 (即時監控頁籤：即時數據網格) */}
         {activeTab === 'vitals' && (
-          <div className="grid grid-cols-2 gap-3 transition-opacity duration-300 animate-fade-in">
+          <div className="space-y-3 transition-opacity duration-300 animate-fade-in">
+            {/* 睡眠狀態快捷切換卡片 */}
+            <div className="bg-monitor-card border border-monitor-border rounded-xl p-3 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full ${currentSleepStatus === 'asleep' ? 'bg-indigo-500 animate-pulse' : 'bg-amber-500'}`} />
+                <span className="text-xs font-extrabold text-slate-700 flex items-center gap-1">
+                  目前狀態：{currentSleepStatus === 'asleep' ? '🛌 睡著中' : '☀️ 清醒中'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleSleepStatus}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95 flex items-center gap-1 ${
+                  currentSleepStatus === 'asleep'
+                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-200'
+                    : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-200'
+                }`}
+              >
+                {currentSleepStatus === 'asleep' ? '切換為：醒來' : '切換為：睡著'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
             {/* 心率卡片 */}
             <button 
               id="hr-card"
@@ -2531,6 +2709,7 @@ function App() {
               </div>
             </button>
           </div>
+          </div>
         )}
 
         {/* 3. 歷史趨勢圖表頁籤 */}
@@ -2541,6 +2720,7 @@ function App() {
             {renderSparkline('rr', '#f59e0b', '呼吸趨勢 (Respiratory Rate)', 'rpm')}
             {renderBpSparkline()}
             {renderUrineChart()}
+            {renderSleepTimeline()}
             {renderEventStatistics()}
           </div>
         )}
