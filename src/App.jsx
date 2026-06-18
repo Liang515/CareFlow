@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Heart, 
   Activity, 
@@ -9,19 +9,14 @@ import {
   Copy, 
   Check, 
   Plus, 
-  Minus, 
   Clock, 
   X, 
   Pill,
   Trash2,
   Settings,
-  Edit2,
   Lock,
-  Unlock,
   RefreshCw,
   HandHeart,
-  MessageSquarePlus,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   Maximize2,
@@ -29,9 +24,28 @@ import {
 } from 'lucide-react';
 
 // 判斷是否為觸控設備 (Coarse Pointer)
-const isTouchDevice = () => {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(pointer: coarse)').matches;
+const IS_TOUCH_DEVICE = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
+// 產生具有隨機後綴的唯一識別碼，防範毫秒內快速點擊造成 ID 衝突
+const generateUniqueId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+// 輕度混淆本地儲存的 PIN 碼以防直接外洩 (Option A)
+const obfuscatePin = (pin) => {
+  if (!pin) return '';
+  try {
+    return btoa(pin.split('').reverse().join(''));
+  } catch {
+    return pin;
+  }
+};
+
+const deobfuscatePin = (obfuscated) => {
+  if (!obfuscated) return '';
+  try {
+    return atob(obfuscated).split('').reverse().join('');
+  } catch {
+    return obfuscated;
+  }
 };
 
 // 原生位元運算加密與解密工具函數 (支援 UTF-8 中文字元，防止 localStorage 直接外洩個資)
@@ -115,23 +129,7 @@ function PinScreen({ onUnlock, isSetup }) {
   const [tempPin, setTempPin] = useState('');
   const [error, setError] = useState('');
 
-  const handleKeyPress = (num) => {
-    if (pin.length < 4) {
-      const newPin = pin + num;
-      setPin(newPin);
-      setError('');
-      if (newPin.length === 4) {
-        setTimeout(() => handlePinComplete(newPin), 200);
-      }
-    }
-  };
-
-  const handleBackspace = () => {
-    setPin(pin.slice(0, -1));
-    setError('');
-  };
-
-  const handlePinComplete = (enteredPin) => {
+  const handlePinComplete = useCallback((enteredPin) => {
     if (step === 'unlock') {
       const success = onUnlock(enteredPin);
       if (!success) {
@@ -152,7 +150,23 @@ function PinScreen({ onUnlock, isSetup }) {
         setTempPin('');
       }
     }
-  };
+  }, [step, onUnlock, tempPin]);
+
+  const handleKeyPress = useCallback((num) => {
+    if (pin.length < 4) {
+      const newPin = pin + num;
+      setPin(newPin);
+      setError('');
+      if (newPin.length === 4) {
+        setTimeout(() => handlePinComplete(newPin), 200);
+      }
+    }
+  }, [pin, handlePinComplete]);
+
+  const handleBackspace = useCallback(() => {
+    setPin(pin.slice(0, -1));
+    setError('');
+  }, [pin]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -164,7 +178,7 @@ function PinScreen({ onUnlock, isSetup }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pin, step, tempPin]);
+  }, [handleKeyPress, handleBackspace]);
 
   return (
     <div className="min-h-screen bg-monitor-bg text-monitor-text flex flex-col justify-between p-6 max-w-md mx-auto border-x border-monitor-border font-sans">
@@ -378,24 +392,13 @@ const INITIAL_LOGS = [
 ];
 
 function App() {
-  const maskName = (name) => {
-    if (!name) return '';
-    if (name.length <= 1) return '*';
-    if (name.length === 2) return name[0] + '*';
-    if (name.startsWith('受測者')) {
-      return '受測者 *' + name.slice(-2);
-    }
-    const first = name[0];
-    const last = name[name.length - 1];
-    return `${first}${'*'.repeat(name.length - 2)}${last}`;
-  };
-
   const [isLocked, setIsLocked] = useState(() => {
     const hasVerify = !!localStorage.getItem('careflow_verify');
     if (!hasVerify) return true;
     
     // 檢查是否有儲存的 session pin，若有且正確，免解鎖
-    const savedPin = localStorage.getItem('careflow_session_pin');
+    const savedObfuscated = localStorage.getItem('careflow_session_pin');
+    const savedPin = deobfuscatePin(savedObfuscated);
     if (savedPin) {
       const verifyToken = localStorage.getItem('careflow_verify');
       const decrypted = decrypt(verifyToken, savedPin);
@@ -407,14 +410,24 @@ function App() {
   });
 
   const [password, setPassword] = useState(() => {
-    return localStorage.getItem('careflow_session_pin') || '';
+    return deobfuscatePin(localStorage.getItem('careflow_session_pin')) || '';
   });
   const [gasUrl, setGasUrl] = useState(() => {
     const envUrl = import.meta.env.VITE_GAS_URL || '';
     if (envUrl) {
       return envUrl;
     }
-    return localStorage.getItem('careflow_gas_url') || '';
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const gasParam = params.get('gas');
+      if (gasParam) {
+        const trimmed = gasParam.trim();
+        localStorage.setItem('careflow_gas_url', trimmed);
+        return trimmed;
+      }
+      return localStorage.getItem('careflow_gas_url') || '';
+    }
+    return '';
   });
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'success' | 'error'
 
@@ -423,7 +436,8 @@ function App() {
   });
 
   const [logs, setLogs] = useState(() => {
-    const savedPin = localStorage.getItem('careflow_session_pin');
+    const savedObfuscated = localStorage.getItem('careflow_session_pin');
+    const savedPin = deobfuscatePin(savedObfuscated);
     if (savedPin) {
       const verifyToken = localStorage.getItem('careflow_verify');
       const decrypted = decrypt(verifyToken, savedPin);
@@ -432,7 +446,11 @@ function App() {
         if (savedLogs) {
           const dec = decrypt(savedLogs, savedPin);
           if (dec) {
-            try { return JSON.parse(dec); } catch(e){}
+            try {
+              return JSON.parse(dec);
+            } catch {
+              return INITIAL_LOGS;
+            }
           }
         }
         return INITIAL_LOGS;
@@ -442,7 +460,8 @@ function App() {
   });
 
   const [patient, setPatient] = useState(() => {
-    const savedPin = localStorage.getItem('careflow_session_pin');
+    const savedObfuscated = localStorage.getItem('careflow_session_pin');
+    const savedPin = deobfuscatePin(savedObfuscated);
     if (savedPin) {
       const verifyToken = localStorage.getItem('careflow_verify');
       const decrypted = decrypt(verifyToken, savedPin);
@@ -451,7 +470,16 @@ function App() {
         if (savedPatient) {
           const dec = decrypt(savedPatient, savedPin);
           if (dec) {
-            try { return JSON.parse(dec); } catch(e){}
+            try {
+              return JSON.parse(dec);
+            } catch {
+              return {
+                name: '受測者 S-001',
+                age: '74',
+                gender: '男',
+                diagnosis: '轉移性攝護腺癌'
+              };
+            }
           }
         }
         return {
@@ -475,7 +503,6 @@ function App() {
   const [reportDuration, setReportDuration] = useState(24); // 預設 24 小時區間
   const [copySuccess, setCopySuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('vitals'); // 'vitals' or 'trends'
-  const [showAllLogs, setShowAllLogs] = useState(false);
   const [collapsedHours, setCollapsedHours] = useState({});
 
   const handleExpandAllHours = () => {
@@ -501,29 +528,25 @@ function App() {
     localStorage.setItem('careflow_font_scale', fontScale.toString());
   }, [fontScale]);
 
-  // 即時時鐘 (每秒更新)
-  const [currentTime, setCurrentTime] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   // 提示框狀態 (用於圖表 hover/click 顯示)
   const [activeTooltip, setActiveTooltip] = useState(null); // { chartId, index, x, y, time, value }
 
   // 表單欄位狀態
   const [systolic, setSystolic] = useState(120);
   const [diastolic, setDiastolic] = useState(80);
-  const [meanArterialPressure, setMeanArterialPressure] = useState(93);
+  const [customMap, setCustomMap] = useState(null);
   const [heartRate, setHeartRate] = useState(80);
   const [oxygen, setOxygen] = useState(98);
   const [respRate, setRespRate] = useState(16);
   const [urineVolume, setUrineVolume] = useState(200);
   const [urineColor, setUrineColor] = useState('clear_yellow');
-  const [medName, setMedName] = useState('一般止痛藥 (如普拿疼)');
   const [customMed, setCustomMed] = useState('');
   const [noteText, setNoteText] = useState('');
   const [careRequestText, setCareRequestText] = useState('');
+
+  // 計算所得的平均壓 (MAP)
+  const calculatedMap = Math.round(diastolic + (systolic - diastolic) / 3);
+  const meanArterialPressure = customMap !== null ? customMap : calculatedMap;
 
   // 滾動容器 ref (用於點擊標題列回到頂部)
   const mainRef = useRef(null);
@@ -531,15 +554,8 @@ function App() {
   // 歷史紀錄篩選類別 (all | vitals | urine | medication | care_request)
   const [logFilter, setLogFilter] = useState('all');
 
-  // 當收縮壓或舒張壓改變時，自動重新計算平均壓 (MAP)
-  useEffect(() => {
-    const s = Number(systolic) || 120;
-    const d = Number(diastolic) || 80;
-    setMeanArterialPressure(Math.round(d + (s - d) / 3));
-  }, [systolic, diastolic]);
-
   // 從雲端 GAS 拉取最新資料並在裝置解密的非同步函數 (支援離線快取優先)
-  const triggerSync = async (pinKey) => {
+  const triggerSync = useCallback(async (pinKey) => {
     const url = gasUrl;
     if (!url) return;
     
@@ -553,7 +569,9 @@ function App() {
         if (dec) {
           try {
             remotePatient = JSON.parse(dec);
-          } catch(e){}
+          } catch (err) {
+            console.warn('解析雲端受測者個資失敗:', err);
+          }
         }
       }
       
@@ -568,7 +586,9 @@ function App() {
             try {
               const parsed = JSON.parse(dec);
               return { id: item.id.toString(), timestamp: item.timestamp, type: item.type, ...parsed };
-            } catch(e){}
+            } catch (err) {
+              console.warn('解析雲端紀錄失敗:', err);
+            }
           }
           decryptFailed = true;
           return null;
@@ -588,7 +608,9 @@ function App() {
         try {
           const deletedIds = new Set(JSON.parse(localStorage.getItem('careflow_deleted_ids') || '[]'));
           remoteLogs = remoteLogs.filter(l => !deletedIds.has(l.id.toString()));
-        } catch(e) {}
+        } catch (err) {
+          console.warn('過濾刪除紀錄失敗:', err);
+        }
         // 由新到舊排序
         remoteLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setLogs(remoteLogs);
@@ -603,16 +625,13 @@ function App() {
       setSyncStatus('error');
       setTimeout(() => setSyncStatus('idle'), 3000);
     }
-  };
+  }, [gasUrl]);
 
-  // 檢查 URL 是否帶有 gas 參數，如有則自動儲存並清除 URL 參數
+  // 檢查 URL 是否帶有 gas 參數，如有則在掛載時清理網址列 (已在 useState 中載入值)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const gasParam = params.get('gas');
     if (gasParam) {
-      const trimmed = gasParam.trim();
-      localStorage.setItem('careflow_gas_url', trimmed);
-      setGasUrl(trimmed);
       // 從網址列移除 ?gas=...
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
@@ -622,9 +641,13 @@ function App() {
   // 當解鎖狀態、密碼或雲端網址變更時，自動觸發雲端同步
   useEffect(() => {
     if (!isLocked && password && gasUrl) {
-      triggerSync(password);
+      // 延後執行以避免 React 偵測到 Effect 內部的同步 setState (react-hooks/set-state-in-effect)
+      const timer = setTimeout(() => {
+        triggerSync(password);
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [isLocked, password, gasUrl]);
+  }, [isLocked, password, gasUrl, triggerSync]);
 
   // 本地儲存同步 - 生理紀錄
   useEffect(() => {
@@ -675,7 +698,8 @@ function App() {
           await postToGas(url, { action: 'clearAll' });
           setSyncStatus('success');
           setTimeout(() => setSyncStatus('idle'), 2000);
-        } catch (e) {
+        } catch (error) {
+          console.error('Failed to clear cloud logs:', error);
           setSyncStatus('error');
           setTimeout(() => setSyncStatus('idle'), 3000);
         }
@@ -684,7 +708,7 @@ function App() {
   };
 
   // 取得最新生理數據
-  const getLatestVitals = () => {
+  const getLatestVitals = useCallback(() => {
     const vitalsLogs = logs.filter(l => l.type === 'vitals');
     if (vitalsLogs.length === 0) return { hr: '--', spo2: '--', rr: '--', bp: '--/--', map: '--' };
     
@@ -700,30 +724,24 @@ function App() {
       map: latest.map,
       timestamp: latest.timestamp
     };
-  };
+  }, [logs]);
 
-  const latest = getLatestVitals();
+  const latest = useMemo(() => getLatestVitals(), [getLatestVitals]);
 
   // 開啟生理數據輸入視窗並自動填入「前一次的輸入值」 (Carry over last recorded values)
   const openVitalsModalWithLatest = () => {
+    setNoteText('');
     const latestHr = latest.hr !== '--' ? latest.hr : 80;
     const latestSpo2 = latest.spo2 !== '--' ? latest.spo2 : 98;
     const latestRr = latest.rr !== '--' ? latest.rr : 16;
     
     let latestSbp = 120;
     let latestDbp = 80;
-    let latestMap = 93;
     
     if (latest.bp && latest.bp !== '--/--') {
       const parts = latest.bp.split('/');
-      latestSbp = parseInt(parts[0]) || 120;
-      latestDbp = parseInt(parts[1]) || 80;
-    }
-    
-    if (latest.map && latest.map !== '--') {
-      latestMap = parseInt(latest.map) || Math.round(latestDbp + (latestSbp - latestDbp) / 3);
-    } else {
-      latestMap = Math.round(latestDbp + (latestSbp - latestDbp) / 3);
+      latestSbp = parseInt(parts[0], 10) || 120;
+      latestDbp = parseInt(parts[1], 10) || 80;
     }
 
     setHeartRate(latestHr);
@@ -731,15 +749,15 @@ function App() {
     setRespRate(latestRr);
     setSystolic(latestSbp);
     setDiastolic(latestDbp);
-    setMeanArterialPressure(latestMap);
+    setCustomMap(null); // 重置為自動計算 (依據載入的最新收縮壓/舒張壓)
     setShowVitalsModal(true);
   };
 
   // 生理數據警報值判定
-  const isHrAlert = (hr) => hr > 100 || hr < 50;
-  const isSpo2Alert = (spo2) => spo2 < 95;
-  const isRrAlert = (rr) => rr > 24;
-  const isBpAlert = (sbp, dbp) => sbp > 140 || dbp > 90 || sbp < 90 || dbp < 55;
+  const isHrAlert = (hr) => hr !== '--' && (Number(hr) > 100 || Number(hr) < 50);
+  const isSpo2Alert = (spo2) => spo2 !== '--' && Number(spo2) < 95;
+  const isRrAlert = (rr) => rr !== '--' && Number(rr) > 24;
+  const isBpAlert = (sbp, dbp) => sbp !== '--' && dbp !== '--' && (Number(sbp) > 140 || Number(dbp) > 90 || Number(sbp) < 90 || Number(dbp) < 55);
 
   // 繪製趨勢圖的 SVG 元件 (支援時間間距比例繪圖與時間標籤)
   const renderSparkline = (key, strokeColor, label, unit, isLarge = false) => {
@@ -773,7 +791,7 @@ function App() {
     const maxTime = Math.max(...times);
     const timeRange = maxTime - minTime || 1;
 
-    const points = data.map((d, index) => {
+    const points = data.map(d => {
       const timeRatio = (d.time.getTime() - minTime) / timeRange;
       const x = paddingX + timeRatio * (width - paddingX * 2);
       const y = height - paddingY - (isLarge ? 12 : 8) - ((d.val - min) / valRange) * (height - paddingY * 2 - (isLarge ? 24 : 16));
@@ -903,7 +921,7 @@ function App() {
                       className="cursor-pointer"
                       style={{ WebkitTapHighlightColor: 'transparent' }}
                       onMouseEnter={() => {
-                        if (isTouchDevice()) return;
+                        if (IS_TOUCH_DEVICE) return;
                         const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
                                         p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                         setActiveTooltip({
@@ -916,7 +934,7 @@ function App() {
                         });
                       }}
                       onMouseLeave={() => {
-                        if (isTouchDevice()) return;
+                        if (IS_TOUCH_DEVICE) return;
                         setActiveTooltip(null);
                       }}
                       onClick={(e) => {
@@ -1053,7 +1071,7 @@ function App() {
     const maxTime = Math.max(...times);
     const timeRange = maxTime - minTime || 1;
 
-    const points = data.map((d, index) => {
+    const points = data.map(d => {
       const timeRatio = (d.time.getTime() - minTime) / timeRange;
       const x = paddingX + timeRatio * (width - paddingX * 2);
       const ySbp = height - paddingY - (isLarge ? 15 : 10) - ((d.sbp - min) / valRange) * (height - paddingY * 2 - (isLarge ? 30 : 20));
@@ -1207,7 +1225,7 @@ function App() {
                       className="cursor-pointer"
                       style={{ WebkitTapHighlightColor: 'transparent' }}
                       onMouseEnter={() => {
-                        if (isTouchDevice()) return;
+                        if (IS_TOUCH_DEVICE) return;
                         const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
                                         p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                         setActiveTooltip({
@@ -1220,7 +1238,7 @@ function App() {
                         });
                       }}
                       onMouseLeave={() => {
-                        if (isTouchDevice()) return;
+                        if (IS_TOUCH_DEVICE) return;
                         setActiveTooltip(null);
                       }}
                       onClick={(e) => {
@@ -1348,7 +1366,7 @@ function App() {
     const maxTime = Math.max(...times);
     const timeRange = maxTime - minTime || 1;
 
-    const points = data.map((d, index) => {
+    const points = data.map(d => {
       const timeRatio = data.length === 1 ? 0.5 : (d.time.getTime() - minTime) / timeRange;
       const x = paddingX + timeRatio * (width - paddingX * 2);
       const barHeight = (d.val / maxVal) * (height - paddingY * 2 - (isLarge ? 18 : 12));
@@ -1417,9 +1435,10 @@ function App() {
       return sum / subset.length;
     });
 
+    const maxRate = Math.max(...movingAverageRates, 10);
     const movingAverages = points.map((p, i) => {
       const avgRate = movingAverageRates[i];
-      const rateHeight = (avgRate / maxVal) * (height - paddingY * 2 - (isLarge ? 18 : 12));
+      const rateHeight = (avgRate / maxRate) * (height - paddingY * 2 - (isLarge ? 18 : 12));
       const y = height - paddingY - 2 - Math.max(0, Math.min(height - paddingY * 2 - (isLarge ? 18 : 12), rateHeight));
       return { x: p.x, y, avgRate };
     });
@@ -1498,7 +1517,7 @@ function App() {
                 <g key={`bar-${i}`}>
                   <rect
                     x={p.x - barWidth / 2}
-                    y={p.y - 4}
+                    y={p.y}
                     width={barWidth}
                     height={p.barHeight}
                     fill={getColorFill(p.color)}
@@ -1535,21 +1554,21 @@ function App() {
                         className="cursor-pointer"
                         style={{ WebkitTapHighlightColor: 'transparent' }}
                         onMouseEnter={() => {
-                          if (isTouchDevice()) return;
+                          if (IS_TOUCH_DEVICE) return;
                           const timeStr = p.time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + 
                                           p.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                           setActiveTooltip({
                             chartId: 'urine',
                             index: i,
                             x: p.x,
-                            y: p.y - 4,
+                            y: p.y,
                             time: timeStr,
                             singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
                             avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
                           });
                         }}
                         onMouseLeave={() => {
-                          if (isTouchDevice()) return;
+                          if (IS_TOUCH_DEVICE) return;
                           setActiveTooltip(null);
                         }}
                         onClick={(e) => {
@@ -1564,7 +1583,7 @@ function App() {
                               chartId: 'urine',
                               index: i,
                               x: p.x,
-                              y: p.y - 4,
+                              y: p.y,
                               time: timeStr,
                               singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
                               avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
@@ -2032,7 +2051,7 @@ function App() {
     const dbpVal = Number(diastolic) || 80;
     const mapVal = Number(meanArterialPressure) || Math.round(dbpVal + (sbpVal - dbpVal) / 3);
     const newLog = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       timestamp: new Date().toISOString(),
       type: 'vitals',
       hr: heartRate,
@@ -2055,7 +2074,7 @@ function App() {
   const handleAddUrine = (e) => {
     e.preventDefault();
     const newLog = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       timestamp: new Date().toISOString(),
       type: 'event',
       eventType: 'urine',
@@ -2077,7 +2096,7 @@ function App() {
     if (!finalMedName) return;
 
     const newLog = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       timestamp: new Date().toISOString(),
       type: 'event',
       eventType: 'medication',
@@ -2097,7 +2116,7 @@ function App() {
   const handleAddCareRequest = (text, category = 'other') => {
     if (!text || !text.trim()) return;
     const newLog = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       timestamp: new Date().toISOString(),
       type: 'event',
       eventType: 'care_request',
@@ -2109,20 +2128,22 @@ function App() {
     setNoteText('');
     setCareRequestText('');
     setShowCareRequestModal(false);
+    
+    // 同步到雲端 Google Sheets
+    uploadLogToCloud(newLog);
   };
 
   // 取得最新睡眠狀態
-  const getLatestSleepStatus = () => {
+  const currentSleepStatus = useMemo(() => {
     const latestSleep = logs.find(l => l.type === 'event' && l.eventType === 'care_request' && l.requestCategory === 'sleep');
     return latestSleep ? latestSleep.sleepStatus : 'awake';
-  };
-  const currentSleepStatus = getLatestSleepStatus();
+  }, [logs]);
 
   // 切換睡眠狀態
   const handleToggleSleepStatus = () => {
     const nextStatus = currentSleepStatus === 'asleep' ? 'awake' : 'asleep';
     const newLog = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       timestamp: new Date().toISOString(),
       type: 'event',
       eventType: 'care_request',
@@ -2144,7 +2165,9 @@ function App() {
           existing.push(id.toString());
           localStorage.setItem('careflow_deleted_ids', JSON.stringify(existing));
         }
-      } catch(e) {}
+      } catch (error) {
+        console.error('Failed to update deleted IDs:', error);
+      }
       setLogs(prev => prev.filter(l => l.id !== id));
       deleteLogFromCloud(id);
     }
@@ -2175,7 +2198,8 @@ function App() {
       });
       setSyncStatus('success');
       setTimeout(() => setSyncStatus('idle'), 2000);
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to upload log to cloud:', error);
       setSyncStatus('error');
       setTimeout(() => setSyncStatus('idle'), 3000);
     }
@@ -2194,14 +2218,15 @@ function App() {
       });
       setSyncStatus('success');
       setTimeout(() => setSyncStatus('idle'), 2000);
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to delete log from cloud:', error);
       setSyncStatus('error');
       setTimeout(() => setSyncStatus('idle'), 3000);
     }
   };
 
   // 產生中文醫護交班報告
-  const generateHandoverMarkdown = () => {
+  const generateHandoverMarkdown = useCallback(() => {
     const now = new Date();
     const thresholdTime = new Date(now.getTime() - reportDuration * 60 * 60 * 1000);
     
@@ -2298,10 +2323,12 @@ function App() {
     }
     
     return report;
-  };
+  }, [logs, reportDuration]);
+
+  const handoverReport = useMemo(() => generateHandoverMarkdown(), [generateHandoverMarkdown]);
 
   const handleCopyReport = () => {
-    const text = generateHandoverMarkdown();
+    const text = handoverReport;
     navigator.clipboard.writeText(text)
       .then(() => {
         setCopySuccess(true);
@@ -2337,10 +2364,10 @@ function App() {
             const rawLogs = localStorage.getItem('careflow_logs');
             const rawPatient = localStorage.getItem('careflow_patient');
             if (rawLogs && rawLogs.startsWith('[')) {
-              try { currentLogs = JSON.parse(rawLogs); } catch(e){}
+              try { currentLogs = JSON.parse(rawLogs); } catch { /* ignore parse error */ }
             }
             if (rawPatient && rawPatient.startsWith('{')) {
-              try { currentPatient = JSON.parse(rawPatient); } catch(e){}
+              try { currentPatient = JSON.parse(rawPatient); } catch { /* ignore parse error */ }
             }
 
             const encryptedLogs = encrypt(JSON.stringify(currentLogs), pin);
@@ -2350,7 +2377,7 @@ function App() {
             localStorage.setItem('careflow_initialized', 'true');
 
             // 3. 設定狀態並解鎖
-            localStorage.setItem('careflow_session_pin', pin);
+            localStorage.setItem('careflow_session_pin', obfuscatePin(pin));
             setLogs(currentLogs);
             setPatient(currentPatient);
             setPassword(pin);
@@ -2367,7 +2394,7 @@ function App() {
               if (savedLogs) {
                 const dec = decrypt(savedLogs, pin);
                 if (dec) {
-                  try { decryptedLogs = JSON.parse(dec); } catch(e){}
+                  try { decryptedLogs = JSON.parse(dec); } catch { /* ignore parse error */ }
                 }
               }
 
@@ -2381,20 +2408,17 @@ function App() {
               if (savedPatient) {
                 const dec = decrypt(savedPatient, pin);
                 if (dec) {
-                  try { decryptedPatient = JSON.parse(dec); } catch(e){}
+                  try { decryptedPatient = JSON.parse(dec); } catch { /* ignore parse error */ }
                 }
               }
 
-              localStorage.setItem('careflow_session_pin', pin);
+              localStorage.setItem('careflow_session_pin', obfuscatePin(pin));
               setLogs(decryptedLogs);
               setPatient(decryptedPatient);
               setPassword(pin);
               setIsLocked(false);
               const hasInitialized = localStorage.getItem('careflow_initialized');
               setIsDemo(!hasInitialized);
-              
-              // 啟動雲端同步
-              triggerSync(pin);
               return true;
             } else {
               return false;
@@ -2522,11 +2546,7 @@ function App() {
             <Settings size={15} />
           </button>
           
-          <div className="text-right pl-1">
-            <div className="text-xs font-mono font-extrabold text-monitor-text">
-              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-            </div>
-          </div>
+          <HeaderClock />
         </div>
       </header>
 
@@ -2760,7 +2780,7 @@ function App() {
               id="handover-raw"
               className="w-full text-[11px] font-mono text-monitor-text bg-monitor-bg border border-monitor-border rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto no-scrollbar"
             >
-              {generateHandoverMarkdown()}
+              {handoverReport}
             </pre>
             
             {/* 複製按鈕 */}
@@ -3050,7 +3070,7 @@ function App() {
         </button>
         <button
           type="button"
-          onClick={() => setShowUrineModal(true)}
+          onClick={() => { setNoteText(''); setShowUrineModal(true); }}
           className="py-3 px-3 bg-cyan-50 border border-cyan-100 text-monitor-cyan font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
           <Droplet size={13} className="fill-monitor-cyan/10" /> 尿量
@@ -3058,14 +3078,14 @@ function App() {
 
         <button
           type="button"
-          onClick={() => setShowMedModal(true)}
+          onClick={() => { setNoteText(''); setShowMedModal(true); }}
           className="py-3 px-3 bg-purple-50 border border-purple-100 text-monitor-purple font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
           <Pill size={13} /> 用藥
         </button>
         <button
           type="button"
-          onClick={() => setShowCareRequestModal(true)}
+          onClick={() => { setNoteText(''); setShowCareRequestModal(true); }}
           className="py-3 px-3 bg-orange-50 border border-orange-100 text-orange-600 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
           <HandHeart size={13} /> 需求
@@ -3237,7 +3257,7 @@ function App() {
                         value={systolic} 
                         onChange={(e) => {
                           const val = e.target.value;
-                          setSystolic(val === '' ? '' : parseInt(val) || 0);
+                          setSystolic(val === '' ? '' : parseInt(val, 10) || 0);
                         }}
                         onBlur={() => {
                           if (!systolic || systolic < 1) setSystolic(120);
@@ -3271,7 +3291,7 @@ function App() {
                         value={diastolic} 
                         onChange={(e) => {
                           const val = e.target.value;
-                          setDiastolic(val === '' ? '' : parseInt(val) || 0);
+                          setDiastolic(val === '' ? '' : parseInt(val, 10) || 0);
                         }}
                         onBlur={() => {
                           if (!diastolic || diastolic < 1) setDiastolic(80);
@@ -3294,7 +3314,7 @@ function App() {
                     <div className="flex items-center gap-1">
                       <button 
                         type="button" 
-                        onClick={() => setMeanArterialPressure(Math.max(30, (Number(meanArterialPressure) || 93) - 1))}
+                        onClick={() => setCustomMap(Math.max(30, (Number(meanArterialPressure) || 93) - 1))}
                         className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-7 h-8 flex items-center justify-center flex-shrink-0"
                         title="-1 mmHg"
                       >
@@ -3305,20 +3325,18 @@ function App() {
                         value={meanArterialPressure} 
                         onChange={(e) => {
                           const val = e.target.value;
-                          setMeanArterialPressure(val === '' ? '' : parseInt(val) || 0);
+                          setCustomMap(val === '' ? '' : parseInt(val, 10) || 0);
                         }}
                         onBlur={() => {
                           if (!meanArterialPressure || meanArterialPressure < 1) {
-                            const s = Number(systolic) || 120;
-                            const d = Number(diastolic) || 80;
-                            setMeanArterialPressure(Math.round(d + (s - d) / 3));
+                            setCustomMap(null); // 重置為自動計算
                           }
                         }}
                         className="w-full text-center py-1.5 bg-monitor-bg border border-monitor-border rounded-md font-telemetry font-bold text-monitor-text focus:outline-none focus:border-monitor-red min-w-0 text-xs"
                       />
                       <button 
                         type="button" 
-                        onClick={() => setMeanArterialPressure(Math.min(200, (Number(meanArterialPressure) || 93) + 1))}
+                        onClick={() => setCustomMap(Math.min(200, (Number(meanArterialPressure) || 93) + 1))}
                         className="p-1 bg-monitor-bg border border-monitor-border rounded-md font-bold active:bg-slate-100 text-xs w-7 h-8 flex items-center justify-center flex-shrink-0"
                         title="+1 mmHg"
                       >
@@ -3392,7 +3410,7 @@ function App() {
                       value={urineVolume} 
                       onChange={(e) => {
                         const val = e.target.value;
-                        setUrineVolume(val === '' ? '' : Math.max(0, parseInt(val) || 0));
+                        setUrineVolume(val === '' ? '' : Math.max(0, parseInt(val, 10) || 0));
                       }}
                       onBlur={() => {
                         if (!urineVolume || urineVolume < 0) setUrineVolume(200);
@@ -3887,6 +3905,24 @@ function SettingsModal({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 即時時鐘元件 (獨立渲染以優化效能，防止每秒全域 Re-render)
+function HeaderClock() {
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="text-right pl-1">
+      <div className="text-xs font-mono font-extrabold text-monitor-text">
+        {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
       </div>
     </div>
   );
