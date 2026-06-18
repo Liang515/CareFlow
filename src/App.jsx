@@ -214,7 +214,7 @@ function PinScreen({ onUnlock, isSetup }) {
             <div
               key={index}
               className={`w-4 h-4 rounded-full border-2 border-slate-300 transition-all duration-150 ${
-                index < pin.length ? 'bg-emerald-400 border-emerald-400 scale-110 shadow-md shadow-emerald-400/30' : 'bg-transparent'
+                index < pin.length ? 'bg-monitor-green border-monitor-green scale-110 shadow-md shadow-monitor-green/30' : 'bg-transparent'
               }`}
             />
           ))}
@@ -222,7 +222,7 @@ function PinScreen({ onUnlock, isSetup }) {
 
         {/* 錯誤訊息 */}
         {error && (
-          <div className="text-xs text-rose-600 font-bold bg-rose-50 border border-rose-200 px-4 py-2 rounded-lg flex items-center gap-1.5 animate-bounce">
+          <div className="text-xs text-monitor-red font-bold bg-monitor-red/10 border border-monitor-red/20 px-4 py-2 rounded-lg flex items-center gap-1.5 animate-bounce">
             <AlertCircle size={14} /> {error}
           </div>
         )}
@@ -1785,7 +1785,7 @@ function App() {
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-4 shadow-sm space-y-4 animate-fade-in">
         <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
           <h3 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
-            <Moon size={14} className="text-indigo-500 fill-indigo-500/10" /> 睡眠與清醒時間分佈 (過去 24 小時)
+            <Moon size={14} className="text-monitor-indigo fill-monitor-indigo/10" /> 睡眠與清醒時間分佈 (過去 24 小時)
           </h3>
           <span className="text-[10px] text-monitor-dim font-bold">
             睡眠: {sleepHrs}小時{sleepMins}分 | 清醒: {awakeHrs}小時{awakeMins}分
@@ -1802,7 +1802,7 @@ function App() {
               return (
                 <div
                   key={idx}
-                  className={`${isAsleep ? 'bg-indigo-600' : 'bg-amber-400'} h-full relative group transition-all duration-300`}
+                  className={`${isAsleep ? 'bg-monitor-indigo' : 'bg-amber-400'} h-full relative group transition-all duration-300`}
                   style={{ width: `${pct}%` }}
                   title={`${isAsleep ? '睡著' : '清醒'}: ${formatTime(inv.start)} - ${formatTime(inv.end)}`}
                 >
@@ -1825,7 +1825,7 @@ function App() {
           {/* 圖例 */}
           <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-600 pt-1">
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" /> 睡著中
+              <span className="w-2.5 h-2.5 rounded-full bg-monitor-indigo inline-block" /> 睡著中
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> 清醒中
@@ -1972,11 +1972,11 @@ function App() {
                           <span className="flex items-center gap-1 font-bold">
                             {c.name}
                           </span>
-                          <span className="font-bold text-orange-600 font-mono">{c.count} 次</span>
+                          <span className="font-bold text-monitor-orange font-mono">{c.count} 次</span>
                         </div>
                         <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                           <div 
-                            className="bg-orange-500 h-full rounded-full transition-all duration-500" 
+                            className="bg-monitor-orange h-full rounded-full transition-all duration-500" 
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -2009,15 +2009,15 @@ function App() {
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex items-start gap-1.5 min-w-0">
                         {isMed ? (
-                          <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                          <span className="bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
                             給藥處置
                           </span>
                         ) : isSleep ? (
-                          <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                          <span className="bg-monitor-indigo/10 border border-monitor-indigo/20 text-monitor-indigo px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
                             睡眠狀態
                           </span>
                         ) : (
-                          <span className="bg-orange-50 border border-orange-100 text-orange-600 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                          <span className="bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
                             照護需求
                           </span>
                         )}
@@ -2604,7 +2604,7 @@ function App() {
             {/* 睡眠狀態快捷切換卡片 */}
             <div className="bg-monitor-card border border-monitor-border rounded-xl p-3 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${currentSleepStatus === 'asleep' ? 'bg-indigo-500 animate-pulse' : 'bg-amber-500'}`} />
+                <div className={`w-2.5 h-2.5 rounded-full ${currentSleepStatus === 'asleep' ? 'bg-monitor-indigo animate-pulse' : 'bg-amber-500'}`} />
                 <span className="text-xs font-extrabold text-slate-700 flex items-center gap-1">
                   目前狀態：{currentSleepStatus === 'asleep' ? '🛌 睡著中' : '☀️ 清醒中'}
                 </span>
@@ -2615,7 +2615,7 @@ function App() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95 flex items-center gap-1 ${
                   currentSleepStatus === 'asleep'
                     ? 'bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-200'
-                    : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-200'
+                    : 'bg-monitor-indigo/20 hover:bg-monitor-indigo/30 text-monitor-indigo border border-monitor-indigo/30'
                 }`}
               >
                 {currentSleepStatus === 'asleep' ? '切換為：醒來' : '切換為：睡著'}
@@ -2964,16 +2964,20 @@ function App() {
                                             {timeStr}
                                           </span>
                                           {log.type === 'vitals' ? (
-                                            <span className="bg-emerald-50 border border-emerald-100 text-monitor-green px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                                            <span className="bg-monitor-green/10 border border-monitor-green/20 text-monitor-green px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
                                               生理數據
                                             </span>
                                           ) : log.eventType === 'care_request' ? (
-                                            <span className="bg-orange-50 border border-orange-100 text-orange-600 px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                                            <span className="bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
                                               照護需求
                                             </span>
+                                          ) : log.eventType === 'urine' ? (
+                                            <span className="bg-monitor-cyan/10 border border-monitor-cyan/20 text-monitor-cyan px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                                              排泄記錄
+                                            </span>
                                           ) : (
-                                            <span className="bg-purple-50 border border-purple-100 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
-                                              {log.eventType === 'urine' ? '排泄記錄' : '給藥處置'}
+                                            <span className="bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                                              給藥處置
                                             </span>
                                           )}
                                         </div>
@@ -3017,7 +3021,7 @@ function App() {
                                               </div>
                                             ) : log.eventType === 'care_request' ? (
                                               <div>
-                                                照護需求: <strong className="text-orange-600">{log.requestText}</strong>
+                                                照護需求: <strong className="text-monitor-orange">{log.requestText}</strong>
                                               </div>
                                             ) : (
                                               <div>
@@ -3064,14 +3068,14 @@ function App() {
         <button
           type="button"
           onClick={openVitalsModalWithLatest}
-          className="flex-1 py-3 bg-monitor-green text-white font-extrabold rounded-xl hover:bg-emerald-600 active:scale-95 transition shadow-sm flex items-center justify-center gap-1 text-xs tracking-wider"
+          className="flex-1 py-3 bg-monitor-green text-white font-extrabold rounded-xl hover:bg-monitor-green/90 active:scale-95 transition shadow-sm flex items-center justify-center gap-1 text-xs tracking-wider"
         >
           <Plus size={14} /> 生理數據
         </button>
         <button
           type="button"
           onClick={() => { setNoteText(''); setShowUrineModal(true); }}
-          className="py-3 px-3 bg-cyan-50 border border-cyan-100 text-monitor-cyan font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+          className="py-3 px-3 bg-monitor-cyan/10 border border-monitor-cyan/20 text-monitor-cyan font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
           <Droplet size={13} className="fill-monitor-cyan/10" /> 尿量
         </button>
@@ -3079,14 +3083,14 @@ function App() {
         <button
           type="button"
           onClick={() => { setNoteText(''); setShowMedModal(true); }}
-          className="py-3 px-3 bg-purple-50 border border-purple-100 text-monitor-purple font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+          className="py-3 px-3 bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
           <Pill size={13} /> 用藥
         </button>
         <button
           type="button"
           onClick={() => { setNoteText(''); setShowCareRequestModal(true); }}
-          className="py-3 px-3 bg-orange-50 border border-orange-100 text-orange-600 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+          className="py-3 px-3 bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
           <HandHeart size={13} /> 需求
         </button>
@@ -3594,10 +3598,10 @@ function App() {
       {/* 照護需求快速記錄對話框 */}
       {showCareRequestModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 animate-fade-in" onClick={() => setShowCareRequestModal(false)}>
-          <div className="bg-monitor-card border-t-4 border-orange-400 rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+          <div className="bg-monitor-card border-t-4 border-monitor-orange rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             
             <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
-              <h3 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-monitor-orange uppercase tracking-wider flex items-center gap-1.5">
                 <HandHeart size={16} /> 登錄照護需求
               </h3>
               <button 
@@ -3612,7 +3616,7 @@ function App() {
               
               {/* 🥤 飲食需求 */}
               <div className="space-y-2">
-                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">🥤 飲食需求</span>
+                <span className="font-semibold text-monitor-orange block flex items-center gap-1.5">🥤 飲食需求</span>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { text: '想喝水', cat: 'nutrition' },
@@ -3623,10 +3627,10 @@ function App() {
                     <button
                       key={item.text}
                       onClick={() => handleAddCareRequest(item.text, item.cat)}
-                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-300 text-left active:bg-orange-50 transition shadow-sm"
+                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-monitor-orange/40 text-left active:bg-monitor-orange/10 transition shadow-sm"
                     >
                       <span className="text-xs font-bold text-monitor-text">{item.text}</span>
-                      <Plus size={12} className="text-orange-400" />
+                      <Plus size={12} className="text-monitor-orange/80" />
                     </button>
                   ))}
                 </div>
@@ -3634,7 +3638,7 @@ function App() {
 
               {/* 🛏️ 姿勢調整 */}
               <div className="space-y-2">
-                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">🛏️ 姿勢調整</span>
+                <span className="font-semibold text-monitor-orange block flex items-center gap-1.5">🛏️ 姿勢調整</span>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { text: '翻身', cat: 'position' },
@@ -3647,10 +3651,10 @@ function App() {
                     <button
                       key={item.text}
                       onClick={() => handleAddCareRequest(item.text, item.cat)}
-                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-300 text-left active:bg-orange-50 transition shadow-sm"
+                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-monitor-orange/40 text-left active:bg-monitor-orange/10 transition shadow-sm"
                     >
                       <span className="text-xs font-bold text-monitor-text">{item.text}</span>
-                      <Plus size={12} className="text-orange-400" />
+                      <Plus size={12} className="text-monitor-orange/80" />
                     </button>
                   ))}
                 </div>
@@ -3658,7 +3662,7 @@ function App() {
 
               {/* 🌡️ 環境舒適 */}
               <div className="space-y-2">
-                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">🌡️ 環境舒適</span>
+                <span className="font-semibold text-monitor-orange block flex items-center gap-1.5">🌡️ 環境舒適</span>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { text: '開燈', cat: 'environment' },
@@ -3671,10 +3675,10 @@ function App() {
                     <button
                       key={item.text}
                       onClick={() => handleAddCareRequest(item.text, item.cat)}
-                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-300 text-left active:bg-orange-50 transition shadow-sm"
+                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-monitor-orange/40 text-left active:bg-monitor-orange/10 transition shadow-sm"
                     >
                       <span className="text-xs font-bold text-monitor-text">{item.text}</span>
-                      <Plus size={12} className="text-orange-400" />
+                      <Plus size={12} className="text-monitor-orange/80" />
                     </button>
                   ))}
                 </div>
@@ -3682,7 +3686,7 @@ function App() {
 
               {/* 🧹 日常照護 */}
               <div className="space-y-2">
-                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">🧹 日常照護</span>
+                <span className="font-semibold text-monitor-orange block flex items-center gap-1.5">🧹 日常照護</span>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { text: '擦澡', cat: 'daily_care' },
@@ -3693,10 +3697,10 @@ function App() {
                     <button
                       key={item.text}
                       onClick={() => handleAddCareRequest(item.text, item.cat)}
-                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-orange-300 text-left active:bg-orange-50 transition shadow-sm"
+                      className="flex items-center justify-between px-3 py-2.5 bg-monitor-bg border border-monitor-border rounded-lg hover:border-monitor-orange/40 text-left active:bg-monitor-orange/10 transition shadow-sm"
                     >
                       <span className="text-xs font-bold text-monitor-text">{item.text}</span>
-                      <Plus size={12} className="text-orange-400" />
+                      <Plus size={12} className="text-monitor-orange/80" />
                     </button>
                   ))}
                 </div>
@@ -3704,19 +3708,19 @@ function App() {
 
               {/* 📝 自由輸入 */}
               <div className="border-t border-monitor-border/60 pt-3 space-y-2">
-                <span className="font-semibold text-orange-700 block flex items-center gap-1.5">📝 其他需求（自由輸入）</span>
+                <span className="font-semibold text-monitor-orange block flex items-center gap-1.5">📝 其他需求（自由輸入）</span>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     placeholder="例如：想聽音樂、需要枕頭、想看電視..."
                     value={careRequestText}
                     onChange={(e) => setCareRequestText(e.target.value)}
-                    className="flex-1 py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-orange-400"
+                    className="flex-1 py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-monitor-orange/70"
                   />
                   <button
                     onClick={() => handleAddCareRequest(careRequestText, 'other')}
                     disabled={!careRequestText.trim()}
-                    className="px-4 bg-orange-500 hover:bg-orange-600 text-white font-bold uppercase rounded-lg disabled:opacity-50 transition"
+                    className="px-4 bg-monitor-orange hover:bg-monitor-orange/90 text-white font-bold uppercase rounded-lg disabled:opacity-50 transition"
                   >
                     儲存
                   </button>

@@ -14,10 +14,12 @@ export default {
           text: '#0f172a',     // Slate 900 text
           dim: '#64748b',      // Slate 500 dim text
           green: '#10b981',    // Emerald 500 (Heart Rate)
-          cyan: '#06b6d4',     // Cyan 500 (SpO2)
+          cyan: '#06b6d4',     // Cyan 500 (SpO2 / Urine)
           yellow: '#f59e0b',   // Amber 500 (Respiratory Rate)
           red: '#ef4444',      // Red 500 (Blood Pressure / Alerts)
           purple: '#8b5cf6',   // Violet 500 (Medication)
+          orange: '#f97316',   // Orange 500 (Care Requests)
+          indigo: '#6366f1',   // Indigo 500 (Sleep Status)
         }
       },
       fontFamily: {
