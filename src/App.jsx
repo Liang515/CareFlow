@@ -814,9 +814,9 @@ function App() {
 
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
-        <div className="flex justify-between items-center text-xs">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 gap-y-1 text-xs">
           <span className="font-bold text-monitor-text">{label}</span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] text-monitor-dim">
               最新: <strong className="text-monitor-text">{vals[vals.length - 1]}</strong> {unit} (區間: {Math.round(min)}-{Math.round(max)})
             </span>
@@ -1098,9 +1098,9 @@ function App() {
 
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
-        <div className="flex justify-between items-center text-xs">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 gap-y-1 text-xs">
           <span className="font-bold text-monitor-text">血壓與平均壓趨勢 (收縮壓/平均壓/舒張壓)</span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] text-monitor-dim">
               最新: <strong className="text-monitor-red">{sbps[sbps.length - 1]}</strong>/<strong className="text-monitor-purple">{maps[maps.length - 1]}</strong>/<strong className="text-slate-700">{dbps[dbps.length - 1]}</strong> mmHg
             </span>
@@ -1446,7 +1446,7 @@ function App() {
 
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-2">
-        <div className="flex justify-between items-center text-xs">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 gap-y-1.5 text-xs">
           <span className="font-bold text-monitor-cyan flex items-center gap-1.5 flex-wrap">
             <span>💧 尿量排泄趨勢 (Urine Output)</span>
             <span className="text-[9px] font-normal text-slate-400 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded-full whitespace-nowrap">
@@ -1454,7 +1454,7 @@ function App() {
               每小時尿量 (3次移動平均)
             </span>
           </span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] text-monitor-dim whitespace-nowrap">
               總量: <strong className="text-cyan-600 font-mono">{totalUrineVol}</strong> cc | 平均: <strong className="text-cyan-600 font-mono">{avgHourlyUrine}</strong> cc/hr
             </span>
@@ -1783,13 +1783,19 @@ function App() {
 
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-4 shadow-sm space-y-4 animate-fade-in">
-        <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
-            <Moon size={14} className="text-monitor-indigo fill-monitor-indigo/10" /> 睡眠與清醒時間分佈 (過去 24 小時)
-          </h3>
-          <span className="text-[10px] text-monitor-dim font-bold">
-            睡眠: {sleepHrs}小時{sleepMins}分 | 清醒: {awakeHrs}小時{awakeMins}分
-          </span>
+        <div className="flex flex-col gap-1.5 pb-2 border-b border-monitor-border">
+          <div className="flex justify-between items-center flex-wrap gap-x-2 gap-y-1">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
+              <Moon size={14} className="text-monitor-indigo fill-monitor-indigo/10" /> 睡眠與清醒時間分佈
+            </h3>
+            <span className="text-[9px] font-normal text-slate-400 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+              過去 24 小時
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-[10px] text-monitor-dim font-bold flex-wrap gap-x-2 gap-y-1">
+            <span className="text-slate-400">狀態時數統計</span>
+            <span>睡眠: {sleepHrs}小時{sleepMins}分 | 清醒: {awakeHrs}小時{awakeMins}分</span>
+          </div>
         </div>
 
         <div className="space-y-2">
