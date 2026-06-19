@@ -837,7 +837,7 @@ function App() {
           </div>
         </div>
         <div className="relative">
-          <svg className={isLarge ? "w-full h-44" : "w-full h-20"} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+          <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 4} x2={width} y2={height/2 - 4} stroke="#f1f5f9" strokeDasharray="3 3" />
             
             {/* 繪製時間軸垂直格線與時間標籤 (防重疊) */}
@@ -1121,7 +1121,7 @@ function App() {
           </div>
         </div>
         <div className="relative">
-          <svg className={isLarge ? "w-full h-48" : "w-full h-24"} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+          <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 5} x2={width} y2={height/2 - 5} stroke="#f1f5f9" strokeDasharray="3 3" />
             
             {/* 時間軸垂直格線與時間標籤 */}
@@ -1475,7 +1475,7 @@ function App() {
           </div>
         </div>
         <div className="relative">
-          <svg className={isLarge ? "w-full h-44" : "w-full h-22"} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+          <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height - paddingY - 2} x2={width} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="1" />
             
             {/* 時間軸垂直格線與時間標籤 */}
