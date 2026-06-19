@@ -500,6 +500,7 @@ function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCareRequestModal, setShowCareRequestModal] = useState(false);
   const [expandedChart, setExpandedChart] = useState(null); // { type, key, strokeColor, label, unit }
+  const [isLogTimelineExpanded, setIsLogTimelineExpanded] = useState(false);
   const [reportDuration, setReportDuration] = useState(24); // 預設 24 小時區間
   const [copySuccess, setCopySuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('vitals'); // 'vitals' or 'trends'
@@ -1798,7 +1799,7 @@ function App() {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {/* 分段進度條 */}
           <div className="w-full h-7 rounded-lg overflow-hidden flex bg-slate-100 border border-slate-200 shadow-inner">
             {intervals.map((inv, idx) => {
@@ -1822,10 +1823,31 @@ function App() {
             })}
           </div>
 
-          {/* 時間刻度 */}
-          <div className="flex justify-between text-[9px] text-monitor-dim font-bold px-0.5">
-            <span>24h前 ({formatTime(startTime)})</span>
-            <span>現在 ({formatTime(now)})</span>
+          {/* 時間刻度標記 (等分 5 段，每 6 小時一個時間標示) */}
+          <div className="relative h-7 pt-0.5 border-t border-slate-100">
+            {Array.from({ length: 5 }).map((_, idx) => {
+              const fraction = idx / 4; // 0, 0.25, 0.5, 0.75, 1
+              const timeAtFraction = new Date(startTime.getTime() + fraction * 24 * 60 * 60 * 1000);
+              const timeStr = `${String(timeAtFraction.getHours()).padStart(2, '0')}:${String(timeAtFraction.getMinutes()).padStart(2, '0')}`;
+              const label = idx === 0 ? '24h前' : idx === 4 ? '現在' : `-${24 - idx * 6}h`;
+              const leftPercent = fraction * 100;
+              
+              return (
+                <div 
+                  key={idx} 
+                  className="absolute top-0 flex flex-col items-center text-center"
+                  style={{ 
+                    left: `${leftPercent}%`, 
+                    transform: idx === 0 ? 'none' : idx === 4 ? 'translateX(-100%)' : 'translateX(-50%)' 
+                  }}
+                >
+                  <span className="h-1.5 w-0.5 bg-slate-300/80 mb-1" />
+                  <span className="whitespace-nowrap font-mono text-[8px] font-bold text-monitor-dim">
+                    {label} ({timeStr})
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           {/* 圖例 */}
@@ -1842,210 +1864,295 @@ function App() {
     );
   };
 
-  // 繪製給藥與照護事件的頻次統計區塊
+  // 繪製照護與給藥事件時間線列表 (支援正常與最大化模式)
+  const renderTimelineList = (isExpanded = false) => {
+    const allEventLogs = logs.filter(l => l.type === 'event' && (l.eventType === 'medication' || l.eventType === 'care_request'));
+    const hasEvents = allEventLogs.length > 0;
+
+    if (!hasEvents) {
+      return (
+        <div className="text-center py-8 bg-slate-50 border border-slate-100 rounded-lg text-xs text-monitor-dim">
+          目前尚無照護與給藥事件紀錄
+        </div>
+      );
+    }
+
+    return (
+      <div className={`space-y-2.5 ${!isExpanded ? 'mt-4 border-t border-monitor-border pt-3.5 animate-slide-up' : ''}`}>
+        {!isExpanded && (
+          <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+            <span className="flex items-center gap-1">📋 照護與給藥事件時間線 (按時間降冪)</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-monitor-dim font-normal">共 {allEventLogs.length} 筆</span>
+              <button
+                type="button"
+                onClick={() => setIsLogTimelineExpanded(true)}
+                className="p-1 hover:bg-slate-100 rounded-md text-monitor-dim hover:text-monitor-text transition flex items-center gap-0.5 text-[9px] font-bold border border-slate-200 bg-white active:scale-95 shadow-sm"
+                title="全畫面檢視"
+              >
+                <Maximize2 size={11} />
+                全螢幕
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className={`space-y-1.5 p-2.5 rounded-lg border border-slate-100 bg-slate-50/70 overflow-y-auto no-scrollbar ${
+          isExpanded ? 'max-h-[60vh]' : 'max-h-60'
+        }`}>
+          {allEventLogs.map((log) => {
+            const logDate = new Date(log.timestamp);
+            const logTimeStr = `${String(logDate.getMonth() + 1).padStart(2, '0')}/${String(logDate.getDate()).padStart(2, '0')} ${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
+            const isMed = log.eventType === 'medication';
+            const isSleep = log.requestCategory === 'sleep';
+            
+            return (
+              <div key={log.id} className="text-[10px] bg-white border border-slate-200/60 p-2 rounded shadow-sm flex flex-col gap-1">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="flex items-start gap-1.5 min-w-0">
+                    {isMed ? (
+                      <span className="bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                        給藥處置
+                      </span>
+                    ) : isSleep ? (
+                      <span className="bg-monitor-indigo/10 border border-monitor-indigo/20 text-monitor-indigo px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                        睡眠狀態
+                      </span>
+                    ) : (
+                      <span className="bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                        照護需求
+                      </span>
+                    )}
+                    <span className="font-bold text-slate-700 break-words min-w-0 flex-1 leading-normal">
+                      {isMed ? log.medicationName : isSleep ? (log.sleepStatus === 'asleep' ? '進入睡眠 (睡著)' : '恢復清醒 (醒來)') : log.requestText}
+                    </span>
+                  </div>
+                  <span className="font-mono text-slate-400 font-semibold text-[9px] flex-shrink-0 pt-0.5">
+                    {logTimeStr}
+                  </span>
+                </div>
+                {log.notes && (
+                  <div className="text-[9px] text-slate-400 pl-1.5 border-l border-slate-200 mt-0.5 break-words">
+                    備註: {log.notes}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // 繪製每日照護負荷與日夜時段統計區塊 (過去 7 天)
   const renderEventStatistics = () => {
-    // 篩選給藥與照護需求紀錄
-    const meds = logs.filter(l => l.type === 'event' && l.eventType === 'medication');
-    const requests = logs.filter(l => l.type === 'event' && l.eventType === 'care_request');
+    const now = new Date();
+    // 取得過去 7 天的日期陣列（包含今天）
+    const dates = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+      const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      dates.push({
+        dateStr,
+        ymd,
+        medCount: 0,
+        careCount: 0,
+        urineCount: 0,
+        total: 0
+      });
+    }
 
-    // 臨床預設藥物清單
-    const PREDEFINED_MEDS = [
-      '一般止痛藥 (如普拿疼)',
-      '強效止痛藥 (嗎啡/貼片)',
-      '抗生素',
-      '點滴/營養劑',
-      '胃腸/解痙/止吐藥',
-      '鎮靜安眠藥'
-    ];
+    let totalInterventions = 0;
+    let dayCount = 0;
+    let nightCount = 0;
 
-    // 統計給藥頻次（預設藥物 vs 其他）
-    const medCounts = {};
-    meds.forEach(m => {
-      const name = PREDEFINED_MEDS.includes(m.medicationName) ? m.medicationName : '其他';
-      medCounts[name] = (medCounts[name] || 0) + 1;
-    });
+    logs.forEach(log => {
+      // 統計生理數據以外的照護事件（給藥、照護需求、排泄尿量）
+      if (log.type !== 'event') return;
+      const logDate = new Date(log.timestamp);
+      const logYmd = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}-${String(logDate.getDate()).padStart(2, '0')}`;
+      const hour = logDate.getHours();
+      
+      // 白班: 08:00 - 20:00, 大夜: 20:00 - 08:00
+      const isDay = hour >= 8 && hour < 20;
 
-    // 轉為陣列並排序
-    const sortedMeds = Object.entries(medCounts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
-
-    // 統計照護需求分類頻次
-    const categoryLabels = { 
-      nutrition: '飲食', 
-      position: '姿勢', 
-      environment: '環境', 
-      daily_care: '日常照護', 
-      other: '其他' 
-    };
-    const reqCatCounts = {
-      nutrition: 0,
-      position: 0,
-      environment: 0,
-      daily_care: 0,
-      other: 0
-    };
-    requests.forEach(r => {
-      if (r.requestCategory === 'sleep') return; // 排除睡眠狀態的次數統計，讓它在獨立睡眠分佈圖呈現即可
-      const cat = r.requestCategory || 'other';
-      if (reqCatCounts[cat] !== undefined) {
-        reqCatCounts[cat]++;
-      } else {
-        reqCatCounts.other++;
+      const dayData = dates.find(d => d.ymd === logYmd);
+      if (dayData) {
+        if (log.eventType === 'medication') {
+          dayData.medCount++;
+          dayData.total++;
+          totalInterventions++;
+          if (isDay) dayCount++; else nightCount++;
+        } else if (log.eventType === 'care_request' && log.requestCategory !== 'sleep') {
+          dayData.careCount++;
+          dayData.total++;
+          totalInterventions++;
+          if (isDay) dayCount++; else nightCount++;
+        } else if (log.eventType === 'urine') {
+          dayData.urineCount++;
+          dayData.total++;
+          totalInterventions++;
+          if (isDay) dayCount++; else nightCount++;
+        }
       }
     });
 
-    const sortedCats = Object.entries(reqCatCounts)
-      .map(([key, count]) => ({ key, name: categoryLabels[key] || '其他', count }))
-      .sort((a, b) => b.count - a.count);
+    const maxTotal = Math.max(...dates.map(d => d.total), 5); // 確保 Y 軸最大值至少為 5
+    const avgDaily = (totalInterventions / 7).toFixed(1);
 
-    // 所有給藥、照護需求與睡眠明細 (合併並降冪時間排序)
-    const allEventLogs = [
-      ...meds.map(m => ({ ...m, categoryType: 'medication' })),
-      ...requests.map(r => ({ ...r, categoryType: 'care_request' }))
-    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // SVG parameters
+    const width = 320;
+    const height = 135;
+    const paddingLeft = 24;
+    const paddingRight = 10;
+    const paddingTop = 15;
+    const paddingBottom = 20;
+    const plotWidth = width - paddingLeft - paddingRight;
+    const plotHeight = height - paddingTop - paddingBottom;
+    const yBaseline = paddingTop + plotHeight;
+    const colWidth = plotWidth / 7;
+    const barWidth = 14;
 
-    const hasEvents = allEventLogs.length > 0;
-    const maxMedCount = sortedMeds.length > 0 ? Math.max(...sortedMeds.map(m => m.count)) : 1;
-    const maxCatCount = sortedCats.length > 0 ? Math.max(...sortedCats.map(c => c.count)) : 1;
+    const dayPct = totalInterventions > 0 ? Math.round((dayCount / totalInterventions) * 100) : 0;
+    const nightPct = totalInterventions > 0 ? Math.round((nightCount / totalInterventions) * 100) : 0;
+
+    // 判定是否夜間照護負荷過重 (夜間大於 35% 或是次數過多)
+    const isNightHeavy = totalInterventions > 0 && (nightCount / totalInterventions) > 0.35;
 
     return (
       <div className="bg-monitor-card border border-monitor-border rounded-xl p-4 shadow-sm space-y-4">
         <h3 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5 pb-2 border-b border-monitor-border">
-          <HandHeart size={14} className="text-monitor-purple" /> 照護事件頻次統計 (次數分析)
+          <Activity size={14} className="text-monitor-orange" /> 每日照護介入與時段分佈 (過去 7 天)
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 給藥處置統計 */}
-          <div className="space-y-2.5">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-              <span className="flex items-center gap-1">💊 給藥紀錄統計</span>
-              <span className="text-[10px] text-monitor-dim">共 {meds.length} 次</span>
+        <div className="space-y-4">
+          {/* 趨勢圖表 */}
+          <div>
+            <div className="text-[10px] text-monitor-dim font-bold mb-1 flex justify-between items-center">
+              <span>每日照護介入負荷 (給藥/需求/排泄疊加次數)</span>
+              <span>Y軸最大值: {maxTotal}</span>
             </div>
-            
-            {sortedMeds.length === 0 ? (
-              <div className="text-[11px] text-monitor-dim py-4 text-center bg-slate-50 rounded-lg border border-slate-100">
-                目前尚無給藥紀錄
-              </div>
-            ) : (
-              <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 max-h-72 overflow-y-auto no-scrollbar">
-                {sortedMeds.map((m, i) => {
-                  const pct = (m.count / maxMedCount) * 100;
-                  
+            <div className="relative">
+              <svg className="w-full h-[135px]" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+                {/* 輔助網格線 */}
+                {[0, 0.5, 1].map((ratio, idx) => {
+                  const y = yBaseline - ratio * plotHeight;
+                  const val = Math.round(ratio * maxTotal);
                   return (
-                    <div key={i} className="space-y-1">
-                      <div className="space-y-1 text-xs">
-                        <div className="flex justify-between text-[11px] font-medium text-slate-600 items-center">
-                          <span className="truncate max-w-[200px] flex items-center gap-1 font-bold">
-                            {m.name}
-                          </span>
-                          <span className="font-bold text-monitor-purple font-mono">{m.count} 次</span>
-                        </div>
-                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-monitor-purple h-full rounded-full transition-all duration-500" 
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    <g key={idx}>
+                      <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#f1f5f9" strokeDasharray="3 3" />
+                      <text x={paddingLeft - 6} y={y + 3} className="text-[8px] font-mono text-monitor-dim font-bold" textAnchor="end">
+                        {val}
+                      </text>
+                    </g>
                   );
                 })}
-              </div>
-            )}
+
+                {/* 疊加柱狀圖 */}
+                {dates.map((d, i) => {
+                  const x = paddingLeft + i * colWidth + (colWidth - barWidth) / 2;
+                  
+                  // 各區段高度與 Y 軸位置
+                  const urineHeight = (d.urineCount / maxTotal) * plotHeight;
+                  const medHeight = (d.medCount / maxTotal) * plotHeight;
+                  const careHeight = (d.careCount / maxTotal) * plotHeight;
+
+                  const yUrine = yBaseline - urineHeight;
+                  const yMed = yUrine - medHeight;
+                  const yCare = yMed - careHeight;
+
+                  return (
+                    <g key={i}>
+                      {/* 尿量排泄柱段 (Cyan) */}
+                      {d.urineCount > 0 && (
+                        <rect x={x} y={yUrine} width={barWidth} height={urineHeight} fill="#06b6d4" rx={1} />
+                      )}
+                      {/* 给藥處置柱段 (Purple) */}
+                      {d.medCount > 0 && (
+                        <rect x={x} y={yMed} width={barWidth} height={medHeight} fill="#8b5cf6" rx={1} />
+                      )}
+                      {/* 照護需求柱段 (Orange) */}
+                      {d.careCount > 0 && (
+                        <rect x={x} y={yCare} width={barWidth} height={careHeight} fill="#f97316" rx={1} />
+                      )}
+
+                      {/* X軸日期 */}
+                      <text x={x + barWidth / 2} y={yBaseline + 14} className="text-[9px] font-mono text-monitor-dim font-bold" textAnchor="middle">
+                        {d.dateStr}
+                      </text>
+
+                      {/* 頂部總數文字 */}
+                      {d.total > 0 && (
+                        <text x={x + barWidth / 2} y={yCare - 3} className="text-[8px] font-mono font-bold text-slate-600" textAnchor="middle">
+                          {d.total}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
           </div>
 
-          {/* 照護需求統計 */}
-          <div className="space-y-2.5">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-              <span className="flex items-center gap-1">🤲 照護需求統計</span>
-              <span className="text-[10px] text-monitor-dim">共 {requests.filter(r => r.requestCategory !== 'sleep').length} 次</span>
-            </div>
-            
-            {requests.filter(r => r.requestCategory !== 'sleep').length === 0 ? (
-              <div className="text-[11px] text-monitor-dim py-4 text-center bg-slate-50 rounded-lg border border-slate-100">
-                目前尚無照護需求紀錄
-              </div>
-            ) : (
-              <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 max-h-72 overflow-y-auto no-scrollbar">
-                {sortedCats.map((c, i) => {
-                  const pct = (c.count / maxCatCount) * 100;
+          {/* 圖例說明 */}
+          <div className="flex justify-center gap-4 text-[9px] font-bold text-slate-500 border-t border-slate-100 pt-2 flex-wrap">
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-monitor-orange inline-block" /> 照護需求
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-monitor-purple inline-block" /> 給藥處置
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-monitor-cyan inline-block" /> 排泄記錄
+            </span>
+          </div>
 
-                  return (
-                    <div key={i} className="space-y-1">
-                      <div className="space-y-1 text-xs">
-                        <div className="flex justify-between text-[11px] font-medium text-slate-600 items-center">
-                          <span className="flex items-center gap-1 font-bold">
-                            {c.name}
-                          </span>
-                          <span className="font-bold text-monitor-orange font-mono">{c.count} 次</span>
-                        </div>
-                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-monitor-orange h-full rounded-full transition-all duration-500" 
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+          {/* 數據總結與日夜佔比 */}
+          <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-2.5 text-xs">
+            <div className="flex justify-between items-center text-[10px] font-bold text-monitor-dim border-b border-slate-200/50 pb-1.5">
+              <span>照護介入統計</span>
+              <span>7天總計: {totalInterventions} 次</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-1">
+                <div className="text-[9px] text-monitor-dim font-bold">日均照顧負荷</div>
+                <div className="text-sm font-bold text-slate-700 font-mono">{avgDaily} <span className="text-[10px]">次/天</span></div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[9px] text-monitor-dim font-bold">日夜時段佔比</div>
+                <div className="text-[10px] font-bold text-slate-600">
+                  ☀️ 日 {dayPct}% | 🌙 夜 {nightPct}%
+                </div>
+              </div>
+            </div>
+
+            {/* 進度條 */}
+            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden flex shadow-inner">
+              <div className="bg-amber-400 h-full transition-all duration-500" style={{ width: `${dayPct}%` }} title="白班 (08:00 - 20:00)" />
+              <div className="bg-monitor-indigo h-full transition-all duration-500" style={{ width: `${nightPct}%` }} title="大夜 (20:00 - 08:00)" />
+            </div>
+
+            {/* 警示與提醒 */}
+            {totalInterventions > 0 && (
+              <div className={`p-2 rounded text-[10px] leading-normal flex items-start gap-1.5 font-bold ${
+                isNightHeavy ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100/80 text-slate-600'
+              }`}>
+                <AlertCircle size={13} className={isNightHeavy ? "text-amber-700 flex-shrink-0 mt-0.5" : "text-monitor-dim flex-shrink-0 mt-0.5"} />
+                <p>
+                  {isNightHeavy 
+                    ? '警示：近期夜間照護頻率偏高 (>35%)，長輩可能夜間睡眠不穩，主要照顧者請注意調配休息，防範照顧崩潰。'
+                    : '提醒：目前日夜照護分佈符合正常生理節律，建議長輩夜間繼續保持安穩睡眠環境。'
+                  }
+                </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* 照護與給藥事件時間線 (時間線降冪) */}
-        {hasEvents && (
-          <div className="mt-4 border-t border-monitor-border pt-3.5 space-y-2.5 animate-slide-up">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-              <span className="flex items-center gap-1">📋 照護與給藥事件時間線 (按時間降冪)</span>
-              <span className="text-[10px] text-monitor-dim font-normal">共 {allEventLogs.length} 筆</span>
-            </div>
-            
-            <div className="space-y-1.5 max-h-60 overflow-y-auto no-scrollbar bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-              {allEventLogs.map((log) => {
-                const logDate = new Date(log.timestamp);
-                const logTimeStr = `${String(logDate.getMonth() + 1).padStart(2, '0')}/${String(logDate.getDate()).padStart(2, '0')} ${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
-                const isMed = log.categoryType === 'medication';
-                const isSleep = log.requestCategory === 'sleep';
-                
-                return (
-                  <div key={log.id} className="text-[10px] bg-white border border-slate-200/60 p-2 rounded shadow-sm flex flex-col gap-1">
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex items-start gap-1.5 min-w-0">
-                        {isMed ? (
-                          <span className="bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
-                            給藥處置
-                          </span>
-                        ) : isSleep ? (
-                          <span className="bg-monitor-indigo/10 border border-monitor-indigo/20 text-monitor-indigo px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
-                            睡眠狀態
-                          </span>
-                        ) : (
-                          <span className="bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
-                            照護需求
-                          </span>
-                        )}
-                        <span className="font-bold text-slate-700 break-words min-w-0 flex-1 leading-normal">
-                          {isMed ? log.medicationName : isSleep ? (log.sleepStatus === 'asleep' ? '進入睡眠 (睡著)' : '恢復清醒 (醒來)') : log.requestText}
-                        </span>
-                      </div>
-                      <span className="font-mono text-slate-400 font-semibold text-[9px] flex-shrink-0 pt-0.5">
-                        {logTimeStr}
-                      </span>
-                    </div>
-                    {log.notes && (
-                      <div className="text-[9px] text-slate-400 pl-1.5 border-l border-slate-200 mt-0.5 break-words">
-                        備註: {log.notes}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* 照護與給藥事件時間線 */}
+        {renderTimelineList(false)}
       </div>
     );
   };
@@ -3810,6 +3917,46 @@ function App() {
               <button
                 type="button"
                 onClick={() => setExpandedChart(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+              >
+                關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 照護與給藥事件時間線最大化對話框 */}
+      {isLogTimelineExpanded && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4 transition-opacity animate-fade-in" 
+          onClick={() => setIsLogTimelineExpanded(false)}
+        >
+          <div 
+            className="bg-monitor-card border border-monitor-border rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl animate-slide-up" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
+              <h3 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                📋 照護與給藥事件時間線 (全畫面檢視)
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setIsLogTimelineExpanded(false)}
+                className="text-monitor-dim hover:text-monitor-text transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-1">
+              {renderTimelineList(true)}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsLogTimelineExpanded(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
               >
                 關閉
