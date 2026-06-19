@@ -779,7 +779,7 @@ function App() {
 
     const width = isLarge ? 480 : 320;
     const height = isLarge ? 180 : 90;
-    const paddingX = isLarge ? 24 : 16;
+    const paddingX = isLarge ? 12 : 6;
     const paddingY = isLarge ? 24 : 16;
     
     const vals = data.map(d => d.val);
@@ -897,7 +897,7 @@ function App() {
                   <text
                     x={p.x}
                     y={p.y - (isLarge ? 9 : 7)}
-                    textAnchor="middle"
+                    textAnchor={i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}
                     fontSize={isLarge ? "9.5" : "8.5"}
                     fontWeight="bold"
                     fill={strokeColor}
@@ -1057,7 +1057,7 @@ function App() {
 
     const width = isLarge ? 480 : 320;
     const height = isLarge ? 200 : 105;
-    const paddingX = isLarge ? 24 : 16;
+    const paddingX = isLarge ? 12 : 6;
     const paddingY = isLarge ? 24 : 16;
 
     const sbps = data.map(d => d.sbp);
@@ -1192,7 +1192,7 @@ function App() {
                   <circle cx={p.x} cy={p.ySbp} r={isLarge ? "6" : "4.5"} fill="#ef4444" stroke="#ffffff" strokeWidth={isLarge ? "2.5" : "2"} />
                 )}
                 {showLabelFlags[i] && (
-                  <text x={p.x} y={p.ySbp - (isLarge ? 8 : 6)} textAnchor="middle" fontSize={isLarge ? "8.5" : "7.5"} fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
+                  <text x={p.x} y={p.ySbp - (isLarge ? 8 : 6)} textAnchor={i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"} fontSize={isLarge ? "8.5" : "7.5"} fontWeight="bold" fill="#ef4444" className="font-mono">{p.sbp}</text>
                 )}
                 
                 {/* MAP */}
@@ -1200,7 +1200,7 @@ function App() {
                   <circle cx={p.x} cy={p.yMap} r={isLarge ? "5" : "3.5"} fill="#8b5cf6" stroke="#ffffff" strokeWidth={isLarge ? "2" : "1.5"} />
                 )}
                 {showLabelFlags[i] && (
-                  <text x={p.x} y={p.yMap - (isLarge ? 7 : 5)} textAnchor="middle" fontSize={isLarge ? "8" : "7"} fontWeight="bold" fill="#8b5cf6" className="font-mono">{p.map}</text>
+                  <text x={p.x} y={p.yMap - (isLarge ? 7 : 5)} textAnchor={i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"} fontSize={isLarge ? "8" : "7"} fontWeight="bold" fill="#8b5cf6" className="font-mono">{p.map}</text>
                 )}
 
                 {/* DBP */}
@@ -1208,7 +1208,7 @@ function App() {
                   <circle cx={p.x} cy={p.yDbp} r={isLarge ? "6" : "4.5"} fill="#475569" stroke="#ffffff" strokeWidth={isLarge ? "2.5" : "2"} />
                 )}
                 {showLabelFlags[i] && (
-                  <text x={p.x} y={p.yDbp + (isLarge ? 12 : 9)} textAnchor="middle" fontSize={isLarge ? "8.5" : "7.5"} fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
+                  <text x={p.x} y={p.yDbp + (isLarge ? 12 : 9)} textAnchor={i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"} fontSize={isLarge ? "8.5" : "7.5"} fontWeight="bold" fill="#475569" className="font-mono">{p.dbp}</text>
                 )}
 
                 {/* 增加觸控/懸停感應區 (全高垂直切片，無死角) */}
