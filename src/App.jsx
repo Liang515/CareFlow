@@ -840,22 +840,33 @@ function App() {
           <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 4} x2={width} y2={height/2 - 4} stroke="#f1f5f9" strokeDasharray="3 3" />
             
-            {/* 繪製時間軸垂直格線與時間標籤 (防重疊) */}
+            {/* 繪製時間軸垂直格線與時間標籤 (防重疊與邊際溢出) */}
             {(() => {
               let lastLabelX = -999;
               const labelSpacing = isLarge ? 70 : 60;
-              return points.map((p, i) => {
+              const displayedIndices = [];
+              points.forEach((p, idx) => {
                 const showLabel = p.x - lastLabelX > labelSpacing;
                 if (showLabel) {
+                  displayedIndices.push(idx);
                   lastLabelX = p.x;
                 }
-                return showLabel ? (
+              });
+
+              return points.map((p, i) => {
+                const isDisplayed = displayedIndices.includes(i);
+                if (!isDisplayed) return null;
+                const displayIdx = displayedIndices.indexOf(i);
+                const isFirst = displayIdx === 0;
+                const isLast = displayIdx === displayedIndices.length - 1;
+
+                return (
                   <g key={`grid-${i}`}>
                     <line x1={p.x} y1={paddingY - 6} x2={p.x} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
                     <text
                       x={p.x}
                       y={height - 2}
-                      textAnchor="middle"
+                      textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
                       fontSize={isLarge ? "8.5" : "7.5"}
                       fill="#64748b"
                       className="font-mono font-bold"
@@ -869,7 +880,7 @@ function App() {
                       })()}
                     </text>
                   </g>
-                ) : null;
+                );
               });
             })()}
 
@@ -1124,22 +1135,33 @@ function App() {
           <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 5} x2={width} y2={height/2 - 5} stroke="#f1f5f9" strokeDasharray="3 3" />
             
-            {/* 時間軸垂直格線與時間標籤 */}
+            {/* 時間軸垂直格線與時間標籤 (防重疊與邊際溢出) */}
             {(() => {
               let lastLabelX = -999;
               const labelSpacing = isLarge ? 70 : 60;
-              return points.map((p, i) => {
+              const displayedIndices = [];
+              points.forEach((p, idx) => {
                 const showLabel = p.x - lastLabelX > labelSpacing;
                 if (showLabel) {
+                  displayedIndices.push(idx);
                   lastLabelX = p.x;
                 }
-                return showLabel ? (
+              });
+
+              return points.map((p, i) => {
+                const isDisplayed = displayedIndices.includes(i);
+                if (!isDisplayed) return null;
+                const displayIdx = displayedIndices.indexOf(i);
+                const isFirst = displayIdx === 0;
+                const isLast = displayIdx === displayedIndices.length - 1;
+
+                return (
                   <g key={`grid-bp-${i}`}>
                     <line x1={p.x} y1={paddingY - 6} x2={p.x} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
                     <text
                       x={p.x}
                       y={height - 2}
-                      textAnchor="middle"
+                      textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
                       fontSize={isLarge ? "8.5" : "7.5"}
                       fill="#64748b"
                       className="font-mono font-bold"
@@ -1153,7 +1175,7 @@ function App() {
                       })()}
                     </text>
                   </g>
-                ) : null;
+                );
               });
             })()}
 
@@ -1478,22 +1500,33 @@ function App() {
           <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height - paddingY - 2} x2={width} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="1" />
             
-            {/* 時間軸垂直格線與時間標籤 */}
+            {/* 時間軸垂直格線與時間標籤 (防重疊與邊際溢出) */}
             {(() => {
               let lastLabelX = -999;
               const labelSpacing = isLarge ? 70 : 60;
-              return points.map((p, i) => {
+              const displayedIndices = [];
+              points.forEach((p, idx) => {
                 const showLabel = p.x - lastLabelX > labelSpacing;
                 if (showLabel) {
+                  displayedIndices.push(idx);
                   lastLabelX = p.x;
                 }
-                return showLabel ? (
+              });
+
+              return points.map((p, i) => {
+                const isDisplayed = displayedIndices.includes(i);
+                if (!isDisplayed) return null;
+                const displayIdx = displayedIndices.indexOf(i);
+                const isFirst = displayIdx === 0;
+                const isLast = displayIdx === displayedIndices.length - 1;
+
+                return (
                   <g key={`grid-urine-${i}`}>
                     <line x1={p.x} y1={paddingY - 6} x2={p.x} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
                     <text
                       x={p.x}
                       y={height - 2}
-                      textAnchor="middle"
+                      textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
                       fontSize={isLarge ? "8.5" : "7.5"}
                       fill="#64748b"
                       className="font-mono font-bold"
@@ -1507,7 +1540,7 @@ function App() {
                       })()}
                     </text>
                   </g>
-                ) : null;
+                );
               });
             })()}
 
