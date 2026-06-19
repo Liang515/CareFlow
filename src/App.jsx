@@ -840,49 +840,115 @@ function App() {
           <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 4} x2={width} y2={height/2 - 4} stroke="#f1f5f9" strokeDasharray="3 3" />
             
-            {/* 繪製時間軸垂直格線與時間標籤 (防重疊與邊際溢出) */}
+            {/* 繪製時間軸垂直格線與時間標籤 (固定時間刻度與邊界避讓) */}
             {(() => {
-              let lastLabelX = -999;
-              const labelSpacing = isLarge ? 70 : 60;
-              const displayedIndices = [];
-              points.forEach((p, idx) => {
-                const showLabel = p.x - lastLabelX > labelSpacing;
-                if (showLabel) {
-                  displayedIndices.push(idx);
-                  lastLabelX = p.x;
+              const totalHours = (maxTime - minTime) / (1000 * 60 * 60);
+              let stepHours;
+              if (totalHours <= 12) stepHours = 1;
+              else if (totalHours <= 24) stepHours = 2;
+              else if (totalHours <= 48) stepHours = 4;
+              else if (totalHours <= 96) stepHours = 8;
+              else stepHours = 12;
+
+              const stepMs = stepHours * 60 * 60 * 1000;
+              const ticks = [];
+              const start = new Date(minTime);
+              start.setMinutes(0, 0, 0);
+              start.setSeconds(0, 0);
+              
+              const localHour = start.getHours();
+              const diffToNextMultiple = (stepHours - (localHour % stepHours)) % stepHours;
+              let currentMs = start.getTime() + diffToNextMultiple * 60 * 60 * 1000;
+
+              while (currentMs <= maxTime) {
+                if (currentMs >= minTime) {
+                  ticks.push(new Date(currentMs));
                 }
-              });
+                currentMs += stepMs;
+              }
 
-              return points.map((p, i) => {
-                const isDisplayed = displayedIndices.includes(i);
-                if (!isDisplayed) return null;
-                const displayIdx = displayedIndices.indexOf(i);
-                const isFirst = displayIdx === 0;
-                const isLast = displayIdx === displayedIndices.length - 1;
+              return (
+                <g>
+                  {/* 起點與終點時間標籤 */}
+                  <text
+                    x={paddingX}
+                    y={height - 2}
+                    textAnchor="start"
+                    fontSize={isLarge ? "8.5" : "7.5"}
+                    fill="#64748b"
+                    className="font-mono font-bold"
+                  >
+                    {(() => {
+                      const d = new Date(minTime);
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      const hour = String(d.getHours()).padStart(2, '0');
+                      const minute = String(d.getMinutes()).padStart(2, '0');
+                      return `${month}/${day} ${hour}:${minute}`;
+                    })()}
+                  </text>
+                  <text
+                    x={width - paddingX}
+                    y={height - 2}
+                    textAnchor="end"
+                    fontSize={isLarge ? "8.5" : "7.5"}
+                    fill="#64748b"
+                    className="font-mono font-bold"
+                  >
+                    {(() => {
+                      const d = new Date(maxTime);
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      const hour = String(d.getHours()).padStart(2, '0');
+                      const minute = String(d.getMinutes()).padStart(2, '0');
+                      return `${month}/${day} ${hour}:${minute}`;
+                    })()}
+                  </text>
 
-                return (
-                  <g key={`grid-${i}`}>
-                    <line x1={p.x} y1={paddingY - 6} x2={p.x} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
-                    <text
-                      x={p.x}
-                      y={height - 2}
-                      textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
-                      fontSize={isLarge ? "8.5" : "7.5"}
-                      fill="#64748b"
-                      className="font-mono font-bold"
-                    >
-                      {(() => {
-                        const month = String(p.time.getMonth() + 1).padStart(2, '0');
-                        const day = String(p.time.getDate()).padStart(2, '0');
-                        const hour = String(p.time.getHours()).padStart(2, '0');
-                        const minute = String(p.time.getMinutes()).padStart(2, '0');
-                        return `${month}/${day} ${hour}:${minute}`;
-                      })()}
-                    </text>
-                  </g>
-                );
-              });
+                  {/* 中間固定時間刻度格線與標籤 */}
+                  {ticks.map((tickTime, idx) => {
+                    const pct = (tickTime.getTime() - minTime) / timeRange;
+                    const x = paddingX + pct * (width - paddingX * 2);
+                    const leftPercent = pct * 100;
+                    
+                    // 防重疊：若刻度極度接近首尾（如 < 15% 或 > 85%），則不顯示文字
+                    const showLabel = leftPercent >= 15 && leftPercent <= 85;
+
+                    return (
+                      <g key={`grid-line-${idx}`}>
+                        <line 
+                          x1={x} 
+                          y1={paddingY - 6} 
+                          x2={x} 
+                          y2={height - paddingY - 2} 
+                          stroke="#e2e8f0" 
+                          strokeWidth="0.8" 
+                          strokeDasharray="1.5 1.5" 
+                        />
+                        {showLabel && (
+                          <text
+                            x={x}
+                            y={height - 2}
+                            textAnchor="middle"
+                            fontSize={isLarge ? "8.5" : "7.5"}
+                            fill="#64748b"
+                            className="font-mono font-bold"
+                          >
+                            {(() => {
+                              const month = String(tickTime.getMonth() + 1).padStart(2, '0');
+                              const day = String(tickTime.getDate()).padStart(2, '0');
+                              const hour = String(tickTime.getHours()).padStart(2, '0');
+                              return `${month}/${day} ${hour}:00`;
+                            })()}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
             })()}
+
 
             <path
               d={pathD}
@@ -1135,49 +1201,115 @@ function App() {
           <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 5} x2={width} y2={height/2 - 5} stroke="#f1f5f9" strokeDasharray="3 3" />
             
-            {/* 時間軸垂直格線與時間標籤 (防重疊與邊際溢出) */}
+            {/* 繪製時間軸垂直格線與時間標籤 (固定時間刻度與邊界避讓) */}
             {(() => {
-              let lastLabelX = -999;
-              const labelSpacing = isLarge ? 70 : 60;
-              const displayedIndices = [];
-              points.forEach((p, idx) => {
-                const showLabel = p.x - lastLabelX > labelSpacing;
-                if (showLabel) {
-                  displayedIndices.push(idx);
-                  lastLabelX = p.x;
+              const totalHours = (maxTime - minTime) / (1000 * 60 * 60);
+              let stepHours;
+              if (totalHours <= 12) stepHours = 1;
+              else if (totalHours <= 24) stepHours = 2;
+              else if (totalHours <= 48) stepHours = 4;
+              else if (totalHours <= 96) stepHours = 8;
+              else stepHours = 12;
+
+              const stepMs = stepHours * 60 * 60 * 1000;
+              const ticks = [];
+              const start = new Date(minTime);
+              start.setMinutes(0, 0, 0);
+              start.setSeconds(0, 0);
+              
+              const localHour = start.getHours();
+              const diffToNextMultiple = (stepHours - (localHour % stepHours)) % stepHours;
+              let currentMs = start.getTime() + diffToNextMultiple * 60 * 60 * 1000;
+
+              while (currentMs <= maxTime) {
+                if (currentMs >= minTime) {
+                  ticks.push(new Date(currentMs));
                 }
-              });
+                currentMs += stepMs;
+              }
 
-              return points.map((p, i) => {
-                const isDisplayed = displayedIndices.includes(i);
-                if (!isDisplayed) return null;
-                const displayIdx = displayedIndices.indexOf(i);
-                const isFirst = displayIdx === 0;
-                const isLast = displayIdx === displayedIndices.length - 1;
+              return (
+                <g>
+                  {/* 起點與終點時間標籤 */}
+                  <text
+                    x={paddingX}
+                    y={height - 2}
+                    textAnchor="start"
+                    fontSize={isLarge ? "8.5" : "7.5"}
+                    fill="#64748b"
+                    className="font-mono font-bold"
+                  >
+                    {(() => {
+                      const d = new Date(minTime);
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      const hour = String(d.getHours()).padStart(2, '0');
+                      const minute = String(d.getMinutes()).padStart(2, '0');
+                      return `${month}/${day} ${hour}:${minute}`;
+                    })()}
+                  </text>
+                  <text
+                    x={width - paddingX}
+                    y={height - 2}
+                    textAnchor="end"
+                    fontSize={isLarge ? "8.5" : "7.5"}
+                    fill="#64748b"
+                    className="font-mono font-bold"
+                  >
+                    {(() => {
+                      const d = new Date(maxTime);
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      const hour = String(d.getHours()).padStart(2, '0');
+                      const minute = String(d.getMinutes()).padStart(2, '0');
+                      return `${month}/${day} ${hour}:${minute}`;
+                    })()}
+                  </text>
 
-                return (
-                  <g key={`grid-bp-${i}`}>
-                    <line x1={p.x} y1={paddingY - 6} x2={p.x} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
-                    <text
-                      x={p.x}
-                      y={height - 2}
-                      textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
-                      fontSize={isLarge ? "8.5" : "7.5"}
-                      fill="#64748b"
-                      className="font-mono font-bold"
-                    >
-                      {(() => {
-                        const month = String(p.time.getMonth() + 1).padStart(2, '0');
-                        const day = String(p.time.getDate()).padStart(2, '0');
-                        const hour = String(p.time.getHours()).padStart(2, '0');
-                        const minute = String(p.time.getMinutes()).padStart(2, '0');
-                        return `${month}/${day} ${hour}:${minute}`;
-                      })()}
-                    </text>
-                  </g>
-                );
-              });
+                  {/* 中間固定時間刻度格線與標籤 */}
+                  {ticks.map((tickTime, idx) => {
+                    const pct = (tickTime.getTime() - minTime) / timeRange;
+                    const x = paddingX + pct * (width - paddingX * 2);
+                    const leftPercent = pct * 100;
+                    
+                    // 防重疊：若刻度極度接近首尾（如 < 15% 或 > 85%），則不顯示文字
+                    const showLabel = leftPercent >= 15 && leftPercent <= 85;
+
+                    return (
+                      <g key={`grid-bp-line-${idx}`}>
+                        <line 
+                          x1={x} 
+                          y1={paddingY - 6} 
+                          x2={x} 
+                          y2={height - paddingY - 2} 
+                          stroke="#e2e8f0" 
+                          strokeWidth="0.8" 
+                          strokeDasharray="1.5 1.5" 
+                        />
+                        {showLabel && (
+                          <text
+                            x={x}
+                            y={height - 2}
+                            textAnchor="middle"
+                            fontSize={isLarge ? "8.5" : "7.5"}
+                            fill="#64748b"
+                            className="font-mono font-bold"
+                          >
+                            {(() => {
+                              const month = String(tickTime.getMonth() + 1).padStart(2, '0');
+                              const day = String(tickTime.getDate()).padStart(2, '0');
+                              const hour = String(tickTime.getHours()).padStart(2, '0');
+                              return `${month}/${day} ${hour}:00`;
+                            })()}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
             })()}
+
 
             {/* 收縮壓線 (紅) */}
             <path
@@ -1500,49 +1632,115 @@ function App() {
           <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height - paddingY - 2} x2={width} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="1" />
             
-            {/* 時間軸垂直格線與時間標籤 (防重疊與邊際溢出) */}
+            {/* 繪製時間軸垂直格線與時間標籤 (固定時間刻度與邊界避讓) */}
             {(() => {
-              let lastLabelX = -999;
-              const labelSpacing = isLarge ? 70 : 60;
-              const displayedIndices = [];
-              points.forEach((p, idx) => {
-                const showLabel = p.x - lastLabelX > labelSpacing;
-                if (showLabel) {
-                  displayedIndices.push(idx);
-                  lastLabelX = p.x;
+              const totalHours = (maxTime - minTime) / (1000 * 60 * 60);
+              let stepHours;
+              if (totalHours <= 12) stepHours = 1;
+              else if (totalHours <= 24) stepHours = 2;
+              else if (totalHours <= 48) stepHours = 4;
+              else if (totalHours <= 96) stepHours = 8;
+              else stepHours = 12;
+
+              const stepMs = stepHours * 60 * 60 * 1000;
+              const ticks = [];
+              const start = new Date(minTime);
+              start.setMinutes(0, 0, 0);
+              start.setSeconds(0, 0);
+              
+              const localHour = start.getHours();
+              const diffToNextMultiple = (stepHours - (localHour % stepHours)) % stepHours;
+              let currentMs = start.getTime() + diffToNextMultiple * 60 * 60 * 1000;
+
+              while (currentMs <= maxTime) {
+                if (currentMs >= minTime) {
+                  ticks.push(new Date(currentMs));
                 }
-              });
+                currentMs += stepMs;
+              }
 
-              return points.map((p, i) => {
-                const isDisplayed = displayedIndices.includes(i);
-                if (!isDisplayed) return null;
-                const displayIdx = displayedIndices.indexOf(i);
-                const isFirst = displayIdx === 0;
-                const isLast = displayIdx === displayedIndices.length - 1;
+              return (
+                <g>
+                  {/* 起點與終點時間標籤 */}
+                  <text
+                    x={paddingX}
+                    y={height - 2}
+                    textAnchor="start"
+                    fontSize={isLarge ? "8.5" : "7.5"}
+                    fill="#64748b"
+                    className="font-mono font-bold"
+                  >
+                    {(() => {
+                      const d = new Date(minTime);
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      const hour = String(d.getHours()).padStart(2, '0');
+                      const minute = String(d.getMinutes()).padStart(2, '0');
+                      return `${month}/${day} ${hour}:${minute}`;
+                    })()}
+                  </text>
+                  <text
+                    x={width - paddingX}
+                    y={height - 2}
+                    textAnchor="end"
+                    fontSize={isLarge ? "8.5" : "7.5"}
+                    fill="#64748b"
+                    className="font-mono font-bold"
+                  >
+                    {(() => {
+                      const d = new Date(maxTime);
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      const hour = String(d.getHours()).padStart(2, '0');
+                      const minute = String(d.getMinutes()).padStart(2, '0');
+                      return `${month}/${day} ${hour}:${minute}`;
+                    })()}
+                  </text>
 
-                return (
-                  <g key={`grid-urine-${i}`}>
-                    <line x1={p.x} y1={paddingY - 6} x2={p.x} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
-                    <text
-                      x={p.x}
-                      y={height - 2}
-                      textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
-                      fontSize={isLarge ? "8.5" : "7.5"}
-                      fill="#64748b"
-                      className="font-mono font-bold"
-                    >
-                      {(() => {
-                        const month = String(p.time.getMonth() + 1).padStart(2, '0');
-                        const day = String(p.time.getDate()).padStart(2, '0');
-                        const hour = String(p.time.getHours()).padStart(2, '0');
-                        const minute = String(p.time.getMinutes()).padStart(2, '0');
-                        return `${month}/${day} ${hour}:${minute}`;
-                      })()}
-                    </text>
-                  </g>
-                );
-              });
+                  {/* 中間固定時間刻度格線與標籤 */}
+                  {ticks.map((tickTime, idx) => {
+                    const pct = (tickTime.getTime() - minTime) / timeRange;
+                    const x = paddingX + pct * (width - paddingX * 2);
+                    const leftPercent = pct * 100;
+                    
+                    // 防重疊：若刻度極度接近首尾（如 < 15% 或 > 85%），則不顯示文字
+                    const showLabel = leftPercent >= 15 && leftPercent <= 85;
+
+                    return (
+                      <g key={`grid-urine-line-${idx}`}>
+                        <line 
+                          x1={x} 
+                          y1={paddingY - 6} 
+                          x2={x} 
+                          y2={height - paddingY - 2} 
+                          stroke="#e2e8f0" 
+                          strokeWidth="0.8" 
+                          strokeDasharray="1.5 1.5" 
+                        />
+                        {showLabel && (
+                          <text
+                            x={x}
+                            y={height - 2}
+                            textAnchor="middle"
+                            fontSize={isLarge ? "8.5" : "7.5"}
+                            fill="#64748b"
+                            className="font-mono font-bold"
+                          >
+                            {(() => {
+                              const month = String(tickTime.getMonth() + 1).padStart(2, '0');
+                              const day = String(tickTime.getDate()).padStart(2, '0');
+                              const hour = String(tickTime.getHours()).padStart(2, '0');
+                              return `${month}/${day} ${hour}:00`;
+                            })()}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
             })()}
+
 
             {/* 繪製柱狀圖 */}
             {points.map((p, i) => {
