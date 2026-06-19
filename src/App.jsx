@@ -844,11 +844,11 @@ function App() {
             {(() => {
               const totalHours = (maxTime - minTime) / (1000 * 60 * 60);
               let stepHours;
-              if (totalHours <= 12) stepHours = 1;
-              else if (totalHours <= 24) stepHours = 2;
-              else if (totalHours <= 48) stepHours = 4;
-              else if (totalHours <= 96) stepHours = 8;
-              else stepHours = 12;
+              if (totalHours <= 12) stepHours = 2;
+              else if (totalHours <= 24) stepHours = 4;
+              else if (totalHours <= 48) stepHours = 8;
+              else if (totalHours <= 96) stepHours = 12;
+              else stepHours = 24;
 
               const stepMs = stepHours * 60 * 60 * 1000;
               const ticks = [];
@@ -909,10 +909,10 @@ function App() {
                   {ticks.map((tickTime, idx) => {
                     const pct = (tickTime.getTime() - minTime) / timeRange;
                     const x = paddingX + pct * (width - paddingX * 2);
-                    const leftPercent = pct * 100;
                     
-                    // 防重疊：若刻度極度接近首尾（如 < 15% 或 > 85%），則不顯示文字
-                    const showLabel = leftPercent >= 15 && leftPercent <= 85;
+                    // 防重疊：使用實際 x 座標與首尾安全邊距做判定
+                    const safeMargin = isLarge ? 80 : 60;
+                    const showLabel = x >= paddingX + safeMargin && x <= width - paddingX - safeMargin;
 
                     return (
                       <g key={`grid-line-${idx}`}>
@@ -935,10 +935,16 @@ function App() {
                             className="font-mono font-bold"
                           >
                             {(() => {
-                              const month = String(tickTime.getMonth() + 1).padStart(2, '0');
-                              const day = String(tickTime.getDate()).padStart(2, '0');
-                              const hour = String(tickTime.getHours()).padStart(2, '0');
-                              return `${month}/${day} ${hour}:00`;
+                              if (stepHours === 24) {
+                                // 跨天刻度，顯示日期 MM/DD
+                                const month = String(tickTime.getMonth() + 1).padStart(2, '0');
+                                const day = String(tickTime.getDate()).padStart(2, '0');
+                                return `${month}/${day}`;
+                              } else {
+                                // 當天之內刻度，僅顯示時間 HH:00
+                                const hour = String(tickTime.getHours()).padStart(2, '0');
+                                return `${hour}:00`;
+                              }
                             })()}
                           </text>
                         )}
@@ -1201,15 +1207,14 @@ function App() {
           <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height/2 - 5} x2={width} y2={height/2 - 5} stroke="#f1f5f9" strokeDasharray="3 3" />
             
-            {/* 繪製時間軸垂直格線與時間標籤 (固定時間刻度與邊界避讓) */}
             {(() => {
               const totalHours = (maxTime - minTime) / (1000 * 60 * 60);
               let stepHours;
-              if (totalHours <= 12) stepHours = 1;
-              else if (totalHours <= 24) stepHours = 2;
-              else if (totalHours <= 48) stepHours = 4;
-              else if (totalHours <= 96) stepHours = 8;
-              else stepHours = 12;
+              if (totalHours <= 12) stepHours = 2;
+              else if (totalHours <= 24) stepHours = 4;
+              else if (totalHours <= 48) stepHours = 8;
+              else if (totalHours <= 96) stepHours = 12;
+              else stepHours = 24;
 
               const stepMs = stepHours * 60 * 60 * 1000;
               const ticks = [];
@@ -1270,10 +1275,10 @@ function App() {
                   {ticks.map((tickTime, idx) => {
                     const pct = (tickTime.getTime() - minTime) / timeRange;
                     const x = paddingX + pct * (width - paddingX * 2);
-                    const leftPercent = pct * 100;
                     
-                    // 防重疊：若刻度極度接近首尾（如 < 15% 或 > 85%），則不顯示文字
-                    const showLabel = leftPercent >= 15 && leftPercent <= 85;
+                    // 防重疊：使用實際 x 座標與首尾安全邊距做判定
+                    const safeMargin = isLarge ? 80 : 60;
+                    const showLabel = x >= paddingX + safeMargin && x <= width - paddingX - safeMargin;
 
                     return (
                       <g key={`grid-bp-line-${idx}`}>
@@ -1296,10 +1301,16 @@ function App() {
                             className="font-mono font-bold"
                           >
                             {(() => {
-                              const month = String(tickTime.getMonth() + 1).padStart(2, '0');
-                              const day = String(tickTime.getDate()).padStart(2, '0');
-                              const hour = String(tickTime.getHours()).padStart(2, '0');
-                              return `${month}/${day} ${hour}:00`;
+                              if (stepHours === 24) {
+                                // 跨天刻度，顯示日期 MM/DD
+                                const month = String(tickTime.getMonth() + 1).padStart(2, '0');
+                                const day = String(tickTime.getDate()).padStart(2, '0');
+                                return `${month}/${day}`;
+                              } else {
+                                // 當天之內刻度，僅顯示時間 HH:00
+                                const hour = String(tickTime.getHours()).padStart(2, '0');
+                                return `${hour}:00`;
+                              }
                             })()}
                           </text>
                         )}
@@ -1632,15 +1643,14 @@ function App() {
           <svg className="w-full h-auto" viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
             <line x1="0" y1={height - paddingY - 2} x2={width} y2={height - paddingY - 2} stroke="#e2e8f0" strokeWidth="1" />
             
-            {/* 繪製時間軸垂直格線與時間標籤 (固定時間刻度與邊界避讓) */}
             {(() => {
               const totalHours = (maxTime - minTime) / (1000 * 60 * 60);
               let stepHours;
-              if (totalHours <= 12) stepHours = 1;
-              else if (totalHours <= 24) stepHours = 2;
-              else if (totalHours <= 48) stepHours = 4;
-              else if (totalHours <= 96) stepHours = 8;
-              else stepHours = 12;
+              if (totalHours <= 12) stepHours = 2;
+              else if (totalHours <= 24) stepHours = 4;
+              else if (totalHours <= 48) stepHours = 8;
+              else if (totalHours <= 96) stepHours = 12;
+              else stepHours = 24;
 
               const stepMs = stepHours * 60 * 60 * 1000;
               const ticks = [];
@@ -1701,10 +1711,10 @@ function App() {
                   {ticks.map((tickTime, idx) => {
                     const pct = (tickTime.getTime() - minTime) / timeRange;
                     const x = paddingX + pct * (width - paddingX * 2);
-                    const leftPercent = pct * 100;
                     
-                    // 防重疊：若刻度極度接近首尾（如 < 15% 或 > 85%），則不顯示文字
-                    const showLabel = leftPercent >= 15 && leftPercent <= 85;
+                    // 防重疊：使用實際 x 座標與首尾安全邊距做判定
+                    const safeMargin = isLarge ? 80 : 60;
+                    const showLabel = x >= paddingX + safeMargin && x <= width - paddingX - safeMargin;
 
                     return (
                       <g key={`grid-urine-line-${idx}`}>
@@ -1727,10 +1737,16 @@ function App() {
                             className="font-mono font-bold"
                           >
                             {(() => {
-                              const month = String(tickTime.getMonth() + 1).padStart(2, '0');
-                              const day = String(tickTime.getDate()).padStart(2, '0');
-                              const hour = String(tickTime.getHours()).padStart(2, '0');
-                              return `${month}/${day} ${hour}:00`;
+                              if (stepHours === 24) {
+                                // 跨天刻度，顯示日期 MM/DD
+                                const month = String(tickTime.getMonth() + 1).padStart(2, '0');
+                                const day = String(tickTime.getDate()).padStart(2, '0');
+                                return `${month}/${day}`;
+                              } else {
+                                // 當天之內刻度，僅顯示時間 HH:00
+                                const hour = String(tickTime.getHours()).padStart(2, '0');
+                                return `${hour}:00`;
+                              }
                             })()}
                           </text>
                         )}
