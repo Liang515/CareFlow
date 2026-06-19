@@ -1872,8 +1872,8 @@ function App() {
                 const leftPercent = ((tickTime.getTime() - startTime.getTime()) / (24 * 60 * 60 * 1000)) * 100;
                 const hour = tickTime.getHours();
                 
-                // 每 4 小時標註一次，且與首尾有足夠安全距離以防重疊
-                const isTooClose = leftPercent < 6 || leftPercent > 94;
+                // 與左右兩端（首尾長標籤）保持 20% 寬度以上的安全距離以防重疊
+                const isTooClose = leftPercent < 20 || leftPercent > 80;
                 const showLabel = (hour % 4 === 0) && !isTooClose;
 
                 return (
