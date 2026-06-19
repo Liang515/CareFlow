@@ -128,6 +128,7 @@ function PinScreen({ onUnlock, isSetup }) {
   const [step, setStep] = useState(isSetup ? 'enter' : 'unlock'); // 'enter', 'confirm', 'unlock'
   const [tempPin, setTempPin] = useState('');
   const [error, setError] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handlePinComplete = useCallback((enteredPin) => {
     if (step === 'unlock') {
@@ -244,12 +245,7 @@ function PinScreen({ onUnlock, isSetup }) {
           {/* 重設系統 */}
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm('確定要清除此裝置的所有資料並重設系統嗎？此動作將永久刪除所有歷史紀錄，無法復原。')) {
-                localStorage.clear();
-                window.location.reload();
-              }
-            }}
+            onClick={() => setShowConfirm(true)}
             className="text-[10px] text-monitor-dim hover:text-monitor-text font-bold active:scale-95 transition flex items-center justify-center px-1"
           >
             重設系統
@@ -270,6 +266,48 @@ function PinScreen({ onUnlock, isSetup }) {
           </button>
         </div>
       </div>
+
+      {/* 自訂重設確認對話視窗 */}
+      {showConfirm && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4 animate-fade-in" 
+          onClick={() => setShowConfirm(false)}
+        >
+          <div 
+            className="bg-monitor-card border border-monitor-border rounded-2xl w-full max-w-xs p-5 space-y-4 shadow-2xl animate-slide-up" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-center space-y-2">
+              <div className="text-monitor-red text-2xl">⚠️</div>
+              <h3 className="text-xs font-bold text-monitor-text uppercase tracking-wider">
+                重設系統
+              </h3>
+              <p className="text-[10px] text-monitor-dim leading-relaxed">
+                確定要清除此裝置的所有資料並重設系統嗎？此動作將永久刪除所有歷史紀錄，無法復原。
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] transition"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.reload();
+                }}
+                className="flex-1 py-2 bg-monitor-red text-white font-bold rounded-lg text-[10px] hover:bg-monitor-red/90 transition shadow-sm"
+              >
+                確定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -430,6 +468,11 @@ function App() {
     return '';
   });
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'success' | 'error'
+  const [confirmDialog, setConfirmDialog] = useState(null);
+
+  const showCustomConfirm = (message, onConfirm, title = '確認提示') => {
+    setConfirmDialog({ title, message, onConfirm });
+  };
 
   const [isDemo, setIsDemo] = useState(() => {
     return !localStorage.getItem('careflow_initialized');
@@ -677,35 +720,39 @@ function App() {
   }, [patient, isLocked, password]);
 
   // 清除資料、新建受測者重設函數
-  const handleStartFresh = async () => {
-    if (window.confirm('確定要清除所有紀錄並新建受測者嗎？此動作將刪除當前瀏覽器儲存的所有歷史數據，無法復原。')) {
-      setLogs([]);
-      const newPatient = {
-        name: '受測者 S-001',
-        age: '',
-        gender: '',
-        diagnosis: '一般照護'
-      };
-      setPatient(newPatient);
-      localStorage.setItem('careflow_initialized', 'true');
-      setIsDemo(false);
-      setShowSettingsModal(false);
+  const handleStartFresh = () => {
+    showCustomConfirm(
+      '確定要清除所有紀錄並新建受測者嗎？此動作將刪除當前瀏覽器儲存的所有歷史數據，無法復原。',
+      async () => {
+        setLogs([]);
+        const newPatient = {
+          name: '受測者 S-001',
+          age: '',
+          gender: '',
+          diagnosis: '一般照護'
+        };
+        setPatient(newPatient);
+        localStorage.setItem('careflow_initialized', 'true');
+        setIsDemo(false);
+        setShowSettingsModal(false);
 
-      // 同步清空雲端試算表
-      const url = gasUrl;
-      if (url) {
-        setSyncStatus('syncing');
-        try {
-          await postToGas(url, { action: 'clearAll' });
-          setSyncStatus('success');
-          setTimeout(() => setSyncStatus('idle'), 2000);
-        } catch (error) {
-          console.error('Failed to clear cloud logs:', error);
-          setSyncStatus('error');
-          setTimeout(() => setSyncStatus('idle'), 3000);
+        // 同步清空雲端試算表
+        const url = gasUrl;
+        if (url) {
+          setSyncStatus('syncing');
+          try {
+            await postToGas(url, { action: 'clearAll' });
+            setSyncStatus('success');
+            setTimeout(() => setSyncStatus('idle'), 2000);
+          } catch (error) {
+            console.error('Failed to clear cloud logs:', error);
+            setSyncStatus('error');
+            setTimeout(() => setSyncStatus('idle'), 3000);
+          }
         }
-      }
-    }
+      },
+      '新建受測者'
+    );
   };
 
   // 取得最新生理數據
@@ -2565,20 +2612,24 @@ function App() {
   };
 
   const deleteLog = (id) => {
-    if (window.confirm('確定要刪除此筆交班紀錄嗎？')) {
-      // 將刪除的 ID 存入 localStorage，防止雲端同步時復活
-      try {
-        const existing = JSON.parse(localStorage.getItem('careflow_deleted_ids') || '[]');
-        if (!existing.includes(id.toString())) {
-          existing.push(id.toString());
-          localStorage.setItem('careflow_deleted_ids', JSON.stringify(existing));
+    showCustomConfirm(
+      '確定要刪除此筆紀錄嗎？此動作將同時從雲端同步刪除，且無法復原。',
+      () => {
+        // 將刪除的 ID 存入 localStorage，防止雲端同步時復活
+        try {
+          const existing = JSON.parse(localStorage.getItem('careflow_deleted_ids') || '[]');
+          if (!existing.includes(id.toString())) {
+            existing.push(id.toString());
+            localStorage.setItem('careflow_deleted_ids', JSON.stringify(existing));
+          }
+        } catch (error) {
+          console.error('Failed to update deleted IDs:', error);
         }
-      } catch (error) {
-        console.error('Failed to update deleted IDs:', error);
-      }
-      setLogs(prev => prev.filter(l => l.id !== id));
-      deleteLogFromCloud(id);
-    }
+        setLogs(prev => prev.filter(l => l.id !== id));
+        deleteLogFromCloud(id);
+      },
+      '刪除紀錄'
+    );
   };
 
   // 雲端同步輔支函數 (新增資料)
@@ -4235,6 +4286,48 @@ function App() {
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
               >
                 關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 自訂確認提示對話框 */}
+      {confirmDialog && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4 animate-fade-in" 
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div 
+            className="bg-monitor-card border border-monitor-border rounded-2xl w-full max-w-xs p-5 space-y-4 shadow-2xl animate-slide-up" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-center space-y-2">
+              <div className="text-monitor-red text-2xl">⚠️</div>
+              <h3 className="text-xs font-bold text-monitor-text uppercase tracking-wider">
+                {confirmDialog.title}
+              </h3>
+              <p className="text-[10px] text-monitor-dim leading-relaxed">
+                {confirmDialog.message}
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] transition"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  confirmDialog.onConfirm();
+                  setConfirmDialog(null);
+                }}
+                className="flex-1 py-2 bg-monitor-red text-white font-bold rounded-lg text-[10px] hover:bg-monitor-red/90 transition shadow-sm"
+              >
+                確定
               </button>
             </div>
           </div>
