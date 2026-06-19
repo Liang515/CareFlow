@@ -2083,8 +2083,8 @@ function App() {
             <h3 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
               <Moon size={14} className="text-monitor-indigo fill-monitor-indigo/10" /> 睡眠與清醒時間分佈
             </h3>
-            <span className="text-[9px] font-normal text-slate-400 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-              過去 24 小時
+            <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-100 border border-slate-200/60 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+              {formatTime(startTime)} ~ 現在
             </span>
           </div>
           <div className="flex justify-between items-center text-[10px] text-monitor-dim font-bold flex-wrap gap-x-2 gap-y-1">
@@ -2117,7 +2117,7 @@ function App() {
             })}
           </div>
 
-          {/* 時間刻度標記 (每小時一個刻度，每 4 小時標註一次整點時間，防兩端重疊) */}
+          {/* 時間刻度標記 (每小時一個刻度，每 4 小時標註一次整點時間，防邊際溢出) */}
           <div className="relative h-7 pt-0.5 border-t border-slate-100 mt-1">
             {(() => {
               const ticks = [];
@@ -2133,8 +2133,8 @@ function App() {
                 const leftPercent = ((tickTime.getTime() - startTime.getTime()) / (24 * 60 * 60 * 1000)) * 100;
                 const hour = tickTime.getHours();
                 
-                // 與左右兩端（首尾長標籤）保持 20% 寬度以上的安全距離以防重疊
-                const isTooClose = leftPercent < 20 || leftPercent > 80;
+                // 防邊界溢出：極度接近邊緣（< 5% 或 > 95%）不顯示文字
+                const isTooClose = leftPercent < 5 || leftPercent > 95;
                 const showLabel = (hour % 4 === 0) && !isTooClose;
 
                 return (
@@ -2156,20 +2156,6 @@ function App() {
                 );
               });
             })()}
-
-            {/* 兩端時間點標示 */}
-            <div className="absolute left-0 top-0 flex flex-col items-start">
-              <span className="h-1.5 w-0.5 bg-slate-400" />
-              <span className="whitespace-nowrap font-mono text-[8px] font-bold text-monitor-dim mt-0.5">
-                24h前 ({String(startTime.getHours()).padStart(2, '0')}:{String(startTime.getMinutes()).padStart(2, '0')})
-              </span>
-            </div>
-            <div className="absolute right-0 top-0 flex flex-col items-end">
-              <span className="h-1.5 w-0.5 bg-slate-400" />
-              <span className="whitespace-nowrap font-mono text-[8px] font-bold text-monitor-dim mt-0.5">
-                現在 ({String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')})
-              </span>
-            </div>
           </div>
 
           {/* 圖例 */}
