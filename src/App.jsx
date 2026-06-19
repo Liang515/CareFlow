@@ -1823,31 +1823,59 @@ function App() {
             })}
           </div>
 
-          {/* 時間刻度標記 (等分 5 段，每 6 小時一個時間標示) */}
-          <div className="relative h-7 pt-0.5 border-t border-slate-100">
-            {Array.from({ length: 5 }).map((_, idx) => {
-              const fraction = idx / 4; // 0, 0.25, 0.5, 0.75, 1
-              const timeAtFraction = new Date(startTime.getTime() + fraction * 24 * 60 * 60 * 1000);
-              const timeStr = `${String(timeAtFraction.getHours()).padStart(2, '0')}:${String(timeAtFraction.getMinutes()).padStart(2, '0')}`;
-              const label = idx === 0 ? '24h前' : idx === 4 ? '現在' : `-${24 - idx * 6}h`;
-              const leftPercent = fraction * 100;
-              
-              return (
-                <div 
-                  key={idx} 
-                  className="absolute top-0 flex flex-col items-center text-center"
-                  style={{ 
-                    left: `${leftPercent}%`, 
-                    transform: idx === 0 ? 'none' : idx === 4 ? 'translateX(-100%)' : 'translateX(-50%)' 
-                  }}
-                >
-                  <span className="h-1.5 w-0.5 bg-slate-300/80 mb-1" />
-                  <span className="whitespace-nowrap font-mono text-[8px] font-bold text-monitor-dim">
-                    {label} ({timeStr})
-                  </span>
-                </div>
-              );
-            })}
+          {/* 時間刻度標記 (每小時一個刻度，每 4 小時標註一次整點時間，防兩端重疊) */}
+          <div className="relative h-7 pt-0.5 border-t border-slate-100 mt-1">
+            {(() => {
+              const ticks = [];
+              const temp = new Date(startTime);
+              temp.setMinutes(0, 0, 0);
+              temp.setTime(temp.getTime() + 60 * 60 * 1000); // 確保在 startTime 之後的第一個整點
+              while (temp < now) {
+                ticks.push(new Date(temp));
+                temp.setTime(temp.getTime() + 60 * 60 * 1000);
+              }
+
+              return ticks.map((tickTime, idx) => {
+                const leftPercent = ((tickTime.getTime() - startTime.getTime()) / (24 * 60 * 60 * 1000)) * 100;
+                const hour = tickTime.getHours();
+                
+                // 每 4 小時標註一次，且與首尾有足夠安全距離以防重疊
+                const isTooClose = leftPercent < 6 || leftPercent > 94;
+                const showLabel = (hour % 4 === 0) && !isTooClose;
+
+                return (
+                  <div 
+                    key={`sleep-tick-${idx}`} 
+                    className="absolute top-0 flex flex-col items-center"
+                    style={{ 
+                      left: `${leftPercent}%`, 
+                      transform: 'translateX(-50%)'
+                    }}
+                  >
+                    <span className={`w-0.5 bg-slate-300/70 ${showLabel ? 'h-2' : 'h-1'}`} />
+                    {showLabel && (
+                      <span className="whitespace-nowrap font-mono text-[8px] font-bold text-monitor-dim mt-0.5">
+                        {String(hour).padStart(2, '0')}:00
+                      </span>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+
+            {/* 兩端時間點標示 */}
+            <div className="absolute left-0 top-0 flex flex-col items-start">
+              <span className="h-1.5 w-0.5 bg-slate-400" />
+              <span className="whitespace-nowrap font-mono text-[8px] font-bold text-monitor-dim mt-0.5">
+                24h前 ({String(startTime.getHours()).padStart(2, '0')}:{String(startTime.getMinutes()).padStart(2, '0')})
+              </span>
+            </div>
+            <div className="absolute right-0 top-0 flex flex-col items-end">
+              <span className="h-1.5 w-0.5 bg-slate-400" />
+              <span className="whitespace-nowrap font-mono text-[8px] font-bold text-monitor-dim mt-0.5">
+                現在 ({String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')})
+              </span>
+            </div>
           </div>
 
           {/* 圖例 */}
