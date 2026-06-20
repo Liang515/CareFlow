@@ -399,6 +399,17 @@ const INITIAL_LOGS = [
     notes: '發現深茶色尿液，已鼓勵多喝水。'
   },
   {
+    id: 'stool_mock_1',
+    timestamp: '2026-06-16T12:30:00+08:00',
+    type: 'event',
+    eventType: 'urine',
+    excretionType: 'stool',
+    volumeCc: 150,
+    color: 'brown',
+    stoolForm: 'normal',
+    notes: '排便順暢，呈黃褐色軟條狀。'
+  },
+  {
     id: '9',
     timestamp: '2026-06-16T13:45:00+08:00',
     type: 'event',
@@ -584,6 +595,8 @@ function App() {
   const [respRate, setRespRate] = useState(16);
   const [urineVolume, setUrineVolume] = useState(200);
   const [urineColor, setUrineColor] = useState('clear_yellow');
+  const [excretionType, setExcretionType] = useState('urine'); // 'urine' | 'stool'
+  const [stoolForm, setStoolForm] = useState('normal'); // 'constipated' | 'normal' | 'diarrhea'
   const [customMed, setCustomMed] = useState('');
   const [noteText, setNoteText] = useState('');
   const [careRequestText, setCareRequestText] = useState('');
@@ -1552,7 +1565,7 @@ function App() {
   // 繪製尿量排泄紀錄的柱狀圖 SVG 元件 (支援時間間距比例與顏色對照)
   const renderUrineChart = (isLarge = false) => {
     const data = logs
-      .filter(l => l.type === 'event' && l.eventType === 'urine')
+      .filter(l => l.type === 'event' && l.eventType === 'urine' && l.excretionType !== 'stool')
       .map(l => ({ val: Number(l.volumeCc) || 0, time: new Date(l.timestamp), color: l.color }))
       .filter(d => d.val > 0)
       .reverse(); // 舊到新排序
@@ -1998,6 +2011,86 @@ function App() {
               })()
             )}
           </svg>
+        </div>
+      </div>
+    );
+  };
+
+  // 繪製排便紀錄的卡片元件
+  const renderStoolSummary = () => {
+    const stoolLogs = logs
+      .filter(l => l.type === 'event' && l.eventType === 'urine' && l.excretionType === 'stool')
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    if (stoolLogs.length < 1) {
+      return (
+        <div className="bg-monitor-card border border-monitor-border rounded-xl p-4 text-center shadow-sm">
+          <div className="text-xs font-bold text-amber-800 dark:text-amber-500 mb-1">💩 排便紀錄 (Bowel Movements)</div>
+          <div className="text-[11px] text-monitor-dim py-4">目前尚無排便紀錄</div>
+        </div>
+      );
+    }
+
+    const recentLogs = stoolLogs.slice(0, 5);
+
+    return (
+      <div className="bg-monitor-card border border-monitor-border rounded-xl p-3.5 shadow-sm space-y-3">
+        <div className="flex justify-between items-center text-xs border-b border-monitor-border pb-2">
+          <span className="font-bold text-amber-800 dark:text-amber-500 flex items-center gap-1.5">
+            <span>💩 排便紀錄 (Bowel Movements)</span>
+          </span>
+          <span className="text-[10px] text-monitor-dim font-bold">
+            累計: <strong className="text-amber-700 font-mono">{stoolLogs.length}</strong> 次
+          </span>
+        </div>
+        
+        <div className="space-y-2 max-h-[220px] overflow-y-auto no-scrollbar">
+          {recentLogs.map((log) => {
+            const time = new Date(log.timestamp);
+            const timeStr = time.toLocaleDateString([], { month: '2-digit', day: '2-digit' }) + ' ' + time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            
+            const colorBg = 
+              log.color === 'brown' ? 'bg-[#8b5a2b]' :
+              log.color === 'dark_green' ? 'bg-[#2f4f4f]' :
+              log.color === 'black' ? 'bg-[#111111]' :
+              log.color === 'red' ? 'bg-[#ef4444]' :
+              log.color === 'clay' ? 'bg-[#d2b48c]' : 'bg-[#8b5a2b]';
+              
+            const colorText = 
+              log.color === 'brown' ? '正常(黃/褐)' :
+              log.color === 'dark_green' ? '墨綠色' :
+              log.color === 'black' ? '黑色/瀝青便' :
+              log.color === 'red' ? '紅色/血便' :
+              log.color === 'clay' ? '灰白色' : '正常(黃/褐)';
+
+            const formText = 
+              log.stoolForm === 'constipated' ? '便秘/乾硬' :
+              log.stoolForm === 'normal' ? '正常/軟條' :
+              log.stoolForm === 'diarrhea' ? '腹瀉/稀水' : '正常/軟條';
+
+            return (
+              <div key={log.id} className="text-[10px] flex justify-between items-start gap-2 py-1.5 border-b border-dashed border-slate-100 last:border-0">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-mono text-monitor-dim">{timeStr}</span>
+                    <span className="bg-amber-600/10 text-amber-700 text-[8px] font-bold px-1.5 py-0.2 rounded">
+                      {formText}
+                    </span>
+                  </div>
+                  {log.notes && <div className="text-monitor-dim italic">"{log.notes}"</div>}
+                </div>
+                <div className="text-right flex-shrink-0 flex items-center gap-1.5">
+                  <span className="flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full border border-slate-300 ${colorBg}`} />
+                    <span className="text-slate-500 font-bold">{colorText}</span>
+                  </span>
+                  <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1 py-0.2 rounded">
+                    {log.volumeCc ? `${log.volumeCc}g` : '--'}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -2491,7 +2584,7 @@ function App() {
     uploadLogToCloud(newLog);
   };
 
-  // 儲存尿量事件
+  // 儲存排泄事件
   const handleAddUrine = (e) => {
     e.preventDefault();
     const newLog = {
@@ -2499,8 +2592,10 @@ function App() {
       timestamp: new Date().toISOString(),
       type: 'event',
       eventType: 'urine',
-      volumeCc: Number(urineVolume) || 200,
+      excretionType: excretionType,
+      volumeCc: Number(urineVolume) || (excretionType === 'stool' ? 150 : 200),
       color: urineColor,
+      stoolForm: excretionType === 'stool' ? stoolForm : undefined,
       notes: noteText.trim() || undefined
     };
     setLogs(prev => [newLog, ...prev]);
@@ -2707,8 +2802,22 @@ function App() {
           : null;
       } else if (l.type === 'event') {
         if (l.eventType === 'urine') {
-          const colorName = l.color === 'bright_red' ? '肉眼血尿 (鮮紅)' : l.color === 'tea' ? '深茶色' : '清澈/淡黃';
-          return `[${timeStr}] 💧 尿量記錄: ${l.volumeCc}cc, 顏色: ${colorName}${l.notes ? ` - "${l.notes}"` : ''}`;
+          if (l.excretionType === 'stool') {
+            const colorName = l.color === 'brown' ? '正常(黃/褐)' :
+                              l.color === 'dark_green' ? '墨綠色' :
+                              l.color === 'black' ? '黑色/瀝青便' :
+                              l.color === 'red' ? '紅色/血便' :
+                              l.color === 'clay' ? '灰白色' :
+                              l.color === 'tea' ? '深茶色' :
+                              l.color === 'bright_red' ? '鮮紅血尿' : '黃褐色';
+            const formName = l.stoolForm === 'constipated' ? '便秘/乾硬' :
+                             l.stoolForm === 'normal' ? '正常/軟條' :
+                             l.stoolForm === 'diarrhea' ? '腹瀉/稀水' : '正常/軟條';
+            return `[${timeStr}] 💩 排便記錄: ${l.volumeCc ? `${l.volumeCc}g` : '未記錄量'}, 顏色: ${colorName}, 性狀: ${formName}${l.notes ? ` - "${l.notes}"` : ''}`;
+          } else {
+            const colorName = l.color === 'bright_red' ? '肉眼血尿 (鮮紅)' : l.color === 'tea' ? '深茶色' : '清澈/淡黃';
+            return `[${timeStr}] 💧 尿量記錄: ${l.volumeCc}cc, 顏色: ${colorName}${l.notes ? ` - "${l.notes}"` : ''}`;
+          }
         } else if (l.eventType === 'medication') {
           return `[${timeStr}] 💊 給藥處置: ${l.medicationName}${l.notes ? ` - "${l.notes}"` : ''}`;
         } else if (l.eventType === 'care_request') {
@@ -2735,7 +2844,7 @@ function App() {
     report += `- 心率 (HR): ${hrStr}\n- 血氧 (SpO2): ${spo2Str}\n- 呼吸 (RR): ${rrStr}\n- 血壓 (BP): ${bpStr} (平均壓 MAP: ${mapStr})\n\n`;
     
     // 尿量排泄統計
-    const urineLogs = chronoLogs.filter(l => l.eventType === 'urine');
+    const urineLogs = chronoLogs.filter(l => l.eventType === 'urine' && l.excretionType !== 'stool');
     if (urineLogs.length > 0) {
       const totalUrine = urineLogs.reduce((sum, l) => sum + (Number(l.volumeCc) || 0), 0);
       const avgUrinePerHour = (totalUrine / reportDuration).toFixed(1);
@@ -2751,6 +2860,35 @@ function App() {
       });
       const colorStr = Object.entries(colorCounts).map(([k, v]) => `${k} ${v}次`).join('、');
       report += `- 尿色性狀分佈: ${colorStr}\n\n`;
+    }
+
+    // 排便紀錄統計
+    const stoolLogs = chronoLogs.filter(l => l.eventType === 'urine' && l.excretionType === 'stool');
+    if (stoolLogs.length > 0) {
+      report += `💩 排便統計 (${reportDuration}小時內):\n`;
+      report += `- 總排便次數: ${stoolLogs.length} 次\n`;
+      
+      const formCounts = {};
+      const stoolColorCounts = {};
+      stoolLogs.forEach(l => {
+        const formText = l.stoolForm === 'constipated' ? '便秘/乾硬' :
+                         l.stoolForm === 'normal' ? '正常/軟條' :
+                         l.stoolForm === 'diarrhea' ? '腹瀉/稀水' : '正常/軟條';
+        formCounts[formText] = (formCounts[formText] || 0) + 1;
+        
+        const cText = l.color === 'brown' ? '正常(黃/褐)' :
+                      l.color === 'dark_green' ? '墨綠色' :
+                      l.color === 'black' ? '黑色/瀝青便' :
+                      l.color === 'red' ? '紅色/血便' :
+                      l.color === 'clay' ? '灰白色' :
+                      l.color === 'tea' ? '深茶色 (尿)' :
+                      l.color === 'bright_red' ? '鮮紅血尿 (尿)' : '黃褐色';
+        stoolColorCounts[cText] = (stoolColorCounts[cText] || 0) + 1;
+      });
+      const formStr = Object.entries(formCounts).map(([k, v]) => `${k} ${v}次`).join('、');
+      const sColorStr = Object.entries(stoolColorCounts).map(([k, v]) => `${k} ${v}次`).join('、');
+      report += `- 便便性狀分佈: ${formStr}\n`;
+      report += `- 便便顏色分佈: ${sColorStr}\n\n`;
     }
 
     // 照護需求統計段落
@@ -3187,6 +3325,7 @@ function App() {
             {renderSparkline('rr', '#f59e0b', '呼吸趨勢 (Respiratory Rate)', 'rpm')}
             {renderBpSparkline()}
             {renderUrineChart()}
+            {renderStoolSummary()}
             {renderSleepTimeline()}
             {renderEventStatistics()}
           </div>
@@ -3417,8 +3556,11 @@ function App() {
                                               照護需求
                                             </span>
                                           ) : log.eventType === 'urine' ? (
-                                            <span className="bg-monitor-cyan/10 border border-monitor-cyan/20 text-monitor-cyan px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
-                                              排泄記錄
+                                            <span className={log.excretionType === 'stool' 
+                                              ? "bg-amber-600/10 border border-amber-600/20 text-amber-700 dark:text-amber-400 px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider"
+                                              : "bg-monitor-cyan/10 border border-monitor-cyan/20 text-monitor-cyan px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider"
+                                            }>
+                                              {log.excretionType === 'stool' ? '排便記錄' : '排尿記錄'}
                                             </span>
                                           ) : (
                                             <span className="bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
@@ -3452,18 +3594,54 @@ function App() {
                                         ) : (
                                           <div className="text-[10px] text-monitor-text pt-0.5">
                                             {log.eventType === 'urine' ? (
-                                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                                <span className="whitespace-nowrap">排出尿量: <strong className="text-monitor-cyan">{log.volumeCc} cc</strong></span>
-                                                <span className="flex items-center gap-1 whitespace-nowrap">
-                                                  <span>尿色:</span> 
-                                                  <span className={`w-2 h-2 rounded-full border border-slate-300 inline-block ${
-                                                    log.color === 'bright_red' ? 'bg-[#ef4444]' : log.color === 'tea' ? 'bg-[#8d6e63]' : 'bg-[#fef08a]'
-                                                  }`} />
-                                                  <strong className="text-monitor-text font-bold">
-                                                    {log.color === 'bright_red' ? '鮮紅肉眼血尿' : log.color === 'tea' ? '深茶色' : '清澈淡黃'}
-                                                  </strong>
-                                                </span>
-                                              </div>
+                                              log.excretionType === 'stool' ? (
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                  <span className="whitespace-nowrap">排便量: <strong className="text-amber-700">{log.volumeCc ? `${log.volumeCc} g` : '未紀錄'}</strong></span>
+                                                  <span className="flex items-center gap-1 whitespace-nowrap">
+                                                    <span>便色:</span> 
+                                                    <span className={`w-2 h-2 rounded-full border border-slate-300 inline-block ${
+                                                      log.color === 'brown' ? 'bg-[#8b5a2b]' :
+                                                      log.color === 'dark_green' ? 'bg-[#2f4f4f]' :
+                                                      log.color === 'black' ? 'bg-[#111111]' :
+                                                      log.color === 'red' ? 'bg-[#ef4444]' :
+                                                      log.color === 'clay' ? 'bg-[#d2b48c]' :
+                                                      log.color === 'tea' ? 'bg-[#8d6e63]' :
+                                                      log.color === 'bright_red' ? 'bg-[#ef4444]' : 'bg-[#8b5a2b]'
+                                                    }`} />
+                                                    <strong className="text-monitor-text font-bold">
+                                                      {log.color === 'brown' ? '正常 (黃/褐)' :
+                                                       log.color === 'dark_green' ? '墨綠色' :
+                                                       log.color === 'black' ? '黑色/瀝青便' :
+                                                       log.color === 'red' ? '紅色/血便' :
+                                                       log.color === 'clay' ? '灰白色' :
+                                                       log.color === 'tea' ? '深茶色 (尿)' :
+                                                       log.color === 'bright_red' ? '鮮紅血尿 (尿)' : '正常 (黃/褐)'}
+                                                    </strong>
+                                                  </span>
+                                                  {log.stoolForm && (
+                                                    <span className="whitespace-nowrap text-slate-500 font-bold">
+                                                      (性狀: {
+                                                        log.stoolForm === 'constipated' ? '便秘/乾硬' :
+                                                        log.stoolForm === 'normal' ? '正常/軟條' :
+                                                        log.stoolForm === 'diarrhea' ? '腹瀉/稀水' : log.stoolForm
+                                                      })
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                  <span className="whitespace-nowrap">排出尿量: <strong className="text-monitor-cyan">{log.volumeCc} cc</strong></span>
+                                                  <span className="flex items-center gap-1 whitespace-nowrap">
+                                                    <span>尿色:</span> 
+                                                    <span className={`w-2 h-2 rounded-full border border-slate-300 inline-block ${
+                                                      log.color === 'bright_red' ? 'bg-[#ef4444]' : log.color === 'tea' ? 'bg-[#8d6e63]' : 'bg-[#fef08a]'
+                                                    }`} />
+                                                    <strong className="text-monitor-text font-bold">
+                                                      {log.color === 'bright_red' ? '鮮紅肉眼血尿' : log.color === 'tea' ? '深茶色' : '清澈淡黃'}
+                                                    </strong>
+                                                  </span>
+                                                </div>
+                                              )
                                             ) : log.eventType === 'care_request' ? (
                                               <div>
                                                 照護需求: <strong className="text-monitor-orange">{log.requestText}</strong>
@@ -3519,10 +3697,16 @@ function App() {
         </button>
         <button
           type="button"
-          onClick={() => { setNoteText(''); setShowUrineModal(true); }}
+          onClick={() => { 
+            setNoteText(''); 
+            setExcretionType('urine');
+            setUrineVolume(200);
+            setUrineColor('clear_yellow');
+            setShowUrineModal(true); 
+          }}
           className="py-3 px-3 bg-monitor-cyan/10 border border-monitor-cyan/20 text-monitor-cyan font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
-          <Droplet size={13} className="fill-monitor-cyan/10" /> 尿量
+          <span className="flex items-center gap-0.5">💧/💩 排泄</span>
         </button>
 
         <button
@@ -3827,7 +4011,7 @@ function App() {
             
             <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
               <h3 className="text-sm font-bold text-monitor-cyan uppercase tracking-wider flex items-center gap-1.5">
-                <Droplet size={16} /> 登錄排泄尿量與顏色
+                {excretionType === 'stool' ? '💩' : '💧'} 登錄排泄紀錄 ({excretionType === 'stool' ? '排便' : '排尿'})
               </h3>
               <button 
                 onClick={() => setShowUrineModal(false)}
@@ -3839,11 +4023,48 @@ function App() {
 
             <form onSubmit={handleAddUrine} className="space-y-4 text-xs">
               
-              {/* 尿量容量 (c.c. / mL) */}
+              {/* 排泄類別選擇 */}
+              <div className="space-y-1.5">
+                <span className="font-semibold text-monitor-dim block uppercase">排泄類別</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExcretionType('urine');
+                      setUrineVolume(200);
+                      setUrineColor('clear_yellow');
+                    }}
+                    className={`flex-1 py-2.5 rounded-lg border font-bold flex items-center justify-center gap-1.5 transition ${
+                      excretionType === 'urine'
+                        ? 'border-monitor-cyan bg-cyan-50/50 text-monitor-cyan font-bold'
+                        : 'border-monitor-border bg-monitor-bg text-monitor-dim'
+                    }`}
+                  >
+                    💧 小便 (Urine)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExcretionType('stool');
+                      setUrineVolume(150);
+                      setUrineColor('brown');
+                    }}
+                    className={`flex-1 py-2.5 rounded-lg border font-bold flex items-center justify-center gap-1.5 transition ${
+                      excretionType === 'stool'
+                        ? 'border-amber-600 bg-amber-50/50 text-amber-700 font-bold'
+                        : 'border-monitor-border bg-monitor-bg text-monitor-dim'
+                    }`}
+                  >
+                    💩 大便 (Stool)
+                  </button>
+                </div>
+              </div>
+
+              {/* 容量/重量 */}
               <div className="space-y-1.5">
                 <div className="flex justify-between font-semibold">
-                  <span className="text-monitor-cyan">尿液容量</span>
-                  <span className="text-monitor-dim">{urineVolume || 0} cc</span>
+                  <span className="text-monitor-cyan">{excretionType === 'stool' ? '排便量/估計重量' : '尿液容量'}</span>
+                  <span className="text-monitor-dim">{urineVolume || 0} {excretionType === 'stool' ? 'g' : 'cc'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
@@ -3862,11 +4083,11 @@ function App() {
                         setUrineVolume(val === '' ? '' : Math.max(0, parseInt(val, 10) || 0));
                       }}
                       onBlur={() => {
-                        if (!urineVolume || urineVolume < 0) setUrineVolume(200);
+                        if (!urineVolume || urineVolume < 0) setUrineVolume(excretionType === 'stool' ? 150 : 200);
                       }}
                       className="w-full text-center text-xl font-telemetry font-bold text-monitor-cyan bg-transparent focus:outline-none min-w-0"
                     />
-                    <span className="text-xs text-monitor-dim font-bold ml-1">ml</span>
+                    <span className="text-xs text-monitor-dim font-bold ml-1">{excretionType === 'stool' ? 'g' : 'ml'}</span>
                   </div>
                   <button 
                     type="button" 
@@ -3877,75 +4098,170 @@ function App() {
                   </button>
                 </div>
                 <div className="grid grid-cols-4 gap-2 pt-1">
-                  {[100, 200, 300, 400].map(v => (
+                  {(excretionType === 'stool' ? [50, 100, 150, 250] : [100, 200, 300, 400]).map(v => (
                     <button
                       key={v}
                       type="button"
                       onClick={() => setUrineVolume(v)}
                       className={`py-1.5 font-bold rounded bg-monitor-bg border transition-all ${urineVolume === v ? 'border-monitor-cyan text-monitor-cyan bg-cyan-50/50' : 'border-monitor-border text-monitor-dim'}`}
                     >
-                      {v} cc
+                      {v} {excretionType === 'stool' ? 'g' : 'cc'}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* 尿色視覺選擇網格 */}
+              {/* 顏色選擇 */}
               <div className="space-y-2">
-                <span className="font-semibold text-monitor-dim block uppercase">尿液顏色選擇</span>
+                <span className="font-semibold text-monitor-dim block uppercase">
+                  {excretionType === 'stool' ? '大便顏色選擇' : '尿液顏色選擇'}
+                </span>
                 
-                <div className="grid grid-cols-3 gap-2.5">
-                  
-                  {/* 清澈淡黃 */}
-                  <button
-                    type="button"
-                    onClick={() => setUrineColor('clear_yellow')}
-                    className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition text-center ${urineColor === 'clear_yellow' ? 'border-amber-400 bg-amber-50 text-amber-700 font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-[#fef08a] border border-slate-300" />
-                    <span className="text-[10px]">清澈/淡黃</span>
-                  </button>
+                {excretionType === 'stool' ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* 正常黃褐 */}
+                    <button
+                      type="button"
+                      onClick={() => setUrineColor('brown')}
+                      className={`p-2.5 rounded-lg border flex flex-col items-center justify-center gap-1.5 transition text-center ${urineColor === 'brown' ? 'border-amber-700 bg-amber-50 text-amber-905 font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-[#8b5a2b] border border-slate-300" />
+                      <span className="text-[9px]">正常 (黃/褐)</span>
+                    </button>
 
-                  {/* 深茶色 */}
-                  <button
-                    type="button"
-                    onClick={() => setUrineColor('tea')}
-                    className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition text-center ${urineColor === 'tea' ? 'border-[#8d6e63] bg-[#8d6e63]/15 text-[#8d6e63] font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-[#8d6e63] border border-slate-400" />
-                    <span className="text-[10px]">深茶色</span>
-                  </button>
+                    {/* 墨綠色 */}
+                    <button
+                      type="button"
+                      onClick={() => setUrineColor('dark_green')}
+                      className={`p-2.5 rounded-lg border flex flex-col items-center justify-center gap-1.5 transition text-center ${urineColor === 'dark_green' ? 'border-[#2f4f4f] bg-emerald-50/50 text-[#2f4f4f] font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-[#2f4f4f] border border-slate-400" />
+                      <span className="text-[9px]">墨綠色</span>
+                    </button>
 
-                  {/* 鮮紅血尿 */}
-                  <button
-                    type="button"
-                    onClick={() => setUrineColor('bright_red')}
-                    className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition text-center ${urineColor === 'bright_red' ? 'border-monitor-red bg-rose-50 text-monitor-red font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-monitor-red border border-red-300 animate-pulse" />
-                    <span className="text-[10px]">鮮紅肉眼血尿</span>
-                  </button>
+                    {/* 黑色/瀝青 */}
+                    <button
+                      type="button"
+                      onClick={() => setUrineColor('black')}
+                      className={`p-2.5 rounded-lg border flex flex-col items-center justify-center gap-1.5 transition text-center ${urineColor === 'black' ? 'border-[#111111] bg-slate-100 text-[#111111] font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-[#111111] border border-slate-600 animate-pulse" />
+                      <span className="text-[9px]">黑色/瀝青便</span>
+                    </button>
 
-                </div>
+                    {/* 紅色/血便 */}
+                    <button
+                      type="button"
+                      onClick={() => setUrineColor('red')}
+                      className={`p-2.5 rounded-lg border flex flex-col items-center justify-center gap-1.5 transition text-center ${urineColor === 'red' ? 'border-monitor-red bg-rose-50 text-monitor-red font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-monitor-red border border-red-300 animate-pulse" />
+                      <span className="text-[9px]">紅色/血便</span>
+                    </button>
+
+                    {/* 灰白色 */}
+                    <button
+                      type="button"
+                      onClick={() => setUrineColor('clay')}
+                      className={`p-2.5 rounded-lg border flex flex-col items-center justify-center gap-1.5 transition text-center ${urineColor === 'clay' ? 'border-slate-400 bg-slate-50 text-slate-700 font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-[#d2b48c] border border-slate-300" />
+                      <span className="text-[9px]">灰白色</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {/* 清澈淡黃 */}
+                    <button
+                      type="button"
+                      onClick={() => setUrineColor('clear_yellow')}
+                      className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition text-center ${urineColor === 'clear_yellow' ? 'border-amber-400 bg-amber-50 text-amber-700 font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-[#fef08a] border border-slate-300" />
+                      <span className="text-[10px]">清澈/淡黃</span>
+                    </button>
+
+                    {/* 深茶色 */}
+                    <button
+                      type="button"
+                      onClick={() => setUrineColor('tea')}
+                      className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition text-center ${urineColor === 'tea' ? 'border-[#8d6e63] bg-[#8d6e63]/15 text-[#8d6e63] font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-[#8d6e63] border border-slate-400" />
+                      <span className="text-[10px]">深茶色</span>
+                    </button>
+
+                    {/* 鮮紅血尿 */}
+                    <button
+                      type="button"
+                      onClick={() => setUrineColor('bright_red')}
+                      className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition text-center ${urineColor === 'bright_red' ? 'border-monitor-red bg-rose-50 text-monitor-red font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'}`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-monitor-red border border-red-300 animate-pulse" />
+                      <span className="text-[10px]">鮮紅肉眼血尿</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* 備註欄 */}
+              {/* 便便性狀選擇 (限大便) */}
+              {excretionType === 'stool' && (
+                <div className="space-y-2">
+                  <span className="font-semibold text-monitor-dim block uppercase">便便性狀選擇</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStoolForm('constipated')}
+                      className={`p-2.5 rounded-lg border flex flex-col items-center justify-center gap-1.5 transition text-center ${
+                        stoolForm === 'constipated' ? 'border-amber-600 bg-amber-50/50 text-amber-800 font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'
+                      }`}
+                    >
+                      <span className="text-base">🪨</span>
+                      <span className="text-[9px] font-bold">便秘 / 乾硬</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStoolForm('normal')}
+                      className={`p-2.5 rounded-lg border flex flex-col items-center justify-center gap-1.5 transition text-center ${
+                        stoolForm === 'normal' ? 'border-amber-600 bg-amber-50/50 text-amber-800 font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'
+                      }`}
+                    >
+                      <span className="text-base">🍌</span>
+                      <span className="text-[9px] font-bold">正常 / 軟條</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStoolForm('diarrhea')}
+                      className={`p-2.5 rounded-lg border flex flex-col items-center justify-center gap-1.5 transition text-center ${
+                        stoolForm === 'diarrhea' ? 'border-amber-600 bg-amber-50/50 text-amber-800 font-bold' : 'border-monitor-border bg-monitor-bg text-monitor-dim'
+                      }`}
+                    >
+                      <span className="text-base">💦</span>
+                      <span className="text-[9px] font-bold">腹瀉 / 稀水</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 觀察備註 */}
               <div className="space-y-1">
                 <label className="font-semibold text-monitor-dim block">觀察備註 (選填)</label>
                 <input 
                   type="text" 
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
-                  placeholder="例如：尿中有些許沉澱物、排尿伴隨痙攣等..."
+                  placeholder={excretionType === 'stool' ? "例如：排便費力、有異味、黏液等..." : "例如：尿中有些許沉澱物、排尿伴隨痙攣等..."}
                   className="w-full py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-monitor-cyan"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-monitor-cyan text-white font-extrabold uppercase rounded-lg hover:bg-cyan-600 transition text-xs tracking-wider"
+                className={`w-full py-3 text-white font-extrabold uppercase rounded-lg transition text-xs tracking-wider ${
+                  excretionType === 'stool' ? 'bg-amber-700 hover:bg-amber-800' : 'bg-monitor-cyan hover:bg-cyan-600'
+                }`}
               >
-                確認儲存尿量紀錄
+                確認儲存{excretionType === 'stool' ? '排便' : '尿量'}紀錄
               </button>
 
             </form>
