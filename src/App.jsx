@@ -20,7 +20,9 @@ import {
   ChevronDown,
   ChevronUp,
   Maximize2,
-  Moon
+  Moon,
+  FileText,
+  AlertTriangle
 } from 'lucide-react';
 
 // 判斷是否為觸控設備 (Coarse Pointer)
@@ -2765,6 +2767,557 @@ function App() {
     }
   };
 
+
+
+  // 取得報告統計指標數據
+  const getReportData = useCallback((duration) => {
+    const now = new Date();
+    const thresholdTime = new Date(now.getTime() - duration * 60 * 60 * 1000);
+    const windowLogs = logs.filter(l => new Date(l.timestamp) >= thresholdTime);
+    const vitals = windowLogs.filter(l => l.type === 'vitals');
+    const urines = windowLogs.filter(l => l.type === 'event' && l.eventType === 'urine' && l.excretionType !== 'stool');
+    const stools = windowLogs.filter(l => l.type === 'event' && l.eventType === 'urine' && l.excretionType === 'stool');
+    const meds = windowLogs.filter(l => l.type === 'event' && l.eventType === 'medication');
+    const cares = windowLogs.filter(l => l.type === 'event' && l.eventType === 'care_request' && l.requestCategory !== 'sleep');
+
+    const computeStat = (key) => {
+      const vals = vitals.map(v => v[key]).filter(v => v !== undefined && v !== null);
+      if (vals.length === 0) return { min: null, max: null, avg: null, count: 0 };
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+      const avg = parseFloat((vals.reduce((sum, v) => sum + v, 0) / vals.length).toFixed(1));
+      return { min, max, avg, count: vals.length };
+    };
+
+    const sbpStats = computeStat('sbp');
+    const dbpStats = computeStat('dbp');
+    
+    let hrAbnormal = 0;
+    let spo2Abnormal = 0;
+    let rrAbnormal = 0;
+    let bpAbnormal = 0;
+
+    vitals.forEach(v => {
+      if (v.hr < 60 || v.hr > 100) hrAbnormal++;
+      if (v.spo2 < 95) spo2Abnormal++;
+      if (v.rr < 12 || v.rr > 24) rrAbnormal++;
+      if (v.sbp < 90 || v.sbp > 140 || v.dbp < 60 || v.dbp > 90) bpAbnormal++;
+    });
+
+    return {
+      vitalsCount: vitals.length,
+      hr: computeStat('hr'),
+      spo2: computeStat('spo2'),
+      rr: computeStat('rr'),
+      sbp: sbpStats,
+      dbp: dbpStats,
+      abnormal: {
+        hr: hrAbnormal,
+        spo2: spo2Abnormal,
+        rr: rrAbnormal,
+        bp: bpAbnormal
+      },
+      urines,
+      stools,
+      meds,
+      cares
+    };
+  }, [logs]);
+
+  const reportStats = useMemo(() => getReportData(reportDuration), [getReportData, reportDuration]);
+
+  const renderReportVitalsRow = (label, stat, unit) => {
+    if (stat.count === 0) {
+      return (
+        <tr className="border-b border-monitor-border/60">
+          <td className="py-2.5 px-3 font-bold text-slate-700">{label}</td>
+          <td colSpan="4" className="py-2.5 px-3 text-center text-monitor-dim">此區間內無數據</td>
+        </tr>
+      );
+    }
+
+    const range = stat.max - stat.min;
+    const avgPct = range > 0 ? ((stat.avg - stat.min) / range) * 100 : 50;
+
+    return (
+      <tr className="border-b border-monitor-border/60 text-xs">
+        <td className="py-2.5 px-3 font-bold text-slate-800">{label}</td>
+        <td className="py-2.5 px-3 font-mono font-extrabold text-slate-700">{stat.count} 次</td>
+        <td className="py-2.5 px-3 font-mono font-extrabold text-monitor-cyan">{stat.avg} {unit}</td>
+        <td className="py-2.5 px-3 font-mono font-bold text-slate-700">
+          {stat.min} - {stat.max} {unit}
+        </td>
+        <td className="py-2.5 px-3">
+          <div className="space-y-1 min-w-[120px] max-w-[200px]">
+            <div className="relative w-full h-1.5 bg-slate-100 border border-slate-200 rounded-full">
+              <div 
+                className="absolute h-full bg-slate-300/80 rounded-full"
+                style={{ left: '0%', right: '0%' }}
+              />
+              <div 
+                className="absolute w-2 h-2 rounded-full bg-monitor-cyan -top-[1px] border border-white shadow-sm"
+                style={{ left: `calc(${avgPct}% - 4px)` }}
+              />
+            </div>
+            <div className="flex justify-between text-[8px] text-monitor-dim font-mono font-bold leading-none">
+              <span>Min: {stat.min}</span>
+              <span>Max: {stat.max}</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  const renderReportVitalsStats = (data) => {
+    return (
+      <div className="space-y-3 print-card">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b border-monitor-border pb-1.5 flex items-center gap-1.5">
+          <Activity size={14} className="text-monitor-green" /> 生理 Telemetry 指標數據分析
+        </h4>
+        <div className="overflow-x-auto rounded-lg border border-monitor-border">
+          <table className="w-full text-left border-collapse bg-white">
+            <thead>
+              <tr className="bg-slate-50 border-b border-monitor-border text-[9px] font-extrabold uppercase tracking-wider text-monitor-dim">
+                <th className="py-2 px-3">生理指標</th>
+                <th className="py-2 px-3">量測次數</th>
+                <th className="py-2 px-3">平均值</th>
+                <th className="py-2 px-3">波動範圍</th>
+                <th className="py-2 px-3">波形分佈</th>
+              </tr>
+            </thead>
+            <tbody>
+              {renderReportVitalsRow('心率 (Heart Rate)', data.hr, 'bpm')}
+              {renderReportVitalsRow('血氧 (SpO₂)', data.spo2, '%')}
+              {renderReportVitalsRow('呼吸速率 (Respiratory Rate)', data.rr, 'rpm')}
+              {data.sbp.count > 0 ? (
+                <tr className="border-b border-monitor-border/60 text-xs">
+                  <td className="py-2.5 px-3 font-bold text-slate-800">血壓 (Blood Pressure)</td>
+                  <td className="py-2.5 px-3 font-mono font-extrabold text-slate-700">{data.sbp.count} 次</td>
+                  <td className="py-2.5 px-3 font-mono font-extrabold text-monitor-red">
+                    {data.sbp.avg}/{data.dbp.avg} <span className="text-[10px] text-monitor-dim">mmHg</span>
+                  </td>
+                  <td className="py-2.5 px-3 font-mono font-bold text-slate-700">
+                    {data.sbp.min}/{data.dbp.min} - {data.sbp.max}/{data.dbp.max} <span className="text-[10px] text-monitor-dim">mmHg</span>
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <div className="text-[9px] text-monitor-dim leading-normal font-sans">
+                      平均收縮壓: {data.sbp.avg} | 平均舒張壓: {data.dbp.avg}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <tr className="border-b border-monitor-border/60">
+                  <td className="py-2.5 px-3 font-bold text-slate-700">血壓 (Blood Pressure)</td>
+                  <td colSpan="4" className="py-2.5 px-3 text-center text-monitor-dim">此區間內無數據</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderReportExcretionStats = (data) => {
+    const totalUrine = data.urines.reduce((sum, u) => sum + (Number(u.volumeCc) || 0), 0);
+    const avgUrine = data.urines.length > 0 ? Math.round(totalUrine / data.urines.length) : 0;
+    
+    const urineColors = { clear_yellow: 0, tea: 0, bright_red: 0, other: 0 };
+    data.urines.forEach(u => {
+      if (u.color in urineColors) {
+        urineColors[u.color]++;
+      } else {
+        urineColors.other++;
+      }
+    });
+
+    const stoolForms = { constipated: 0, normal: 0, diarrhea: 0 };
+    const stoolColors = { brown: 0, dark_green: 0, black: 0, red: 0, clay: 0, other: 0 };
+    
+    data.stools.forEach(s => {
+      const form = s.stoolForm || 'normal';
+      if (form in stoolForms) stoolForms[form]++; else stoolForms.normal++;
+      
+      const col = s.color || 'brown';
+      if (col in stoolColors) stoolColors[col]++; else stoolColors.other++;
+    });
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print-card">
+        {/* 尿量水分統計 */}
+        <div className="border border-monitor-border rounded-xl p-4 space-y-3 bg-white">
+          <h5 className="text-xs font-bold text-slate-700 border-b border-monitor-border pb-1.5 flex items-center gap-1.5">
+            <Droplet size={14} className="text-monitor-cyan" /> 💧 尿量與水分排泄統計
+          </h5>
+          <div className="grid grid-cols-3 gap-2 text-center py-1">
+            <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+              <span className="text-[8px] text-monitor-dim font-bold block">總排尿量</span>
+              <span className="text-xs font-extrabold text-monitor-cyan font-mono">{totalUrine} cc</span>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+              <span className="text-[8px] text-monitor-dim font-bold block">排尿次數</span>
+              <span className="text-xs font-extrabold text-slate-700 font-mono">{data.urines.length} 次</span>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+              <span className="text-[8px] text-monitor-dim font-bold block">單次均量</span>
+              <span className="text-xs font-extrabold text-slate-700 font-mono">{avgUrine} cc</span>
+            </div>
+          </div>
+          
+          {data.urines.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-[9px] text-monitor-dim font-bold block">尿液顏色分佈比例</span>
+              <div className="flex h-3 rounded-full overflow-hidden border border-slate-200 bg-slate-100">
+                {Object.entries(urineColors).map(([colName, count]) => {
+                  if (count === 0) return null;
+                  const pct = (count / data.urines.length) * 100;
+                  const colorClass = colName === 'clear_yellow' ? 'bg-amber-200' :
+                                     colName === 'tea' ? 'bg-amber-800' :
+                                     colName === 'bright_red' ? 'bg-rose-500' : 'bg-slate-400';
+                  return (
+                    <div 
+                      key={colName}
+                      className={`${colorClass} h-full`} 
+                      style={{ width: `${pct}%` }} 
+                      title={`${colName}: ${count}次 (${Math.round(pct)}%)`}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-2 text-[8px] font-bold text-slate-600">
+                {urineColors.clear_yellow > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-200 border border-slate-300" /> 清澈/淡黃 ({urineColors.clear_yellow}次)</span>}
+                {urineColors.tea > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-800" /> 深茶色 ({urineColors.tea}次)</span>}
+                {urineColors.bright_red > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-rose-500" /> 鮮紅血尿 ({urineColors.bright_red}次)</span>}
+                {urineColors.other > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-slate-400" /> 其他 ({urineColors.other}次)</span>}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 便便統計 */}
+        <div className="border border-monitor-border rounded-xl p-4 space-y-3 bg-white">
+          <h5 className="text-xs font-bold text-slate-700 border-b border-monitor-border pb-1.5 flex items-center gap-1.5">
+            <span>💩 排便統計與性狀分佈</span>
+          </h5>
+          <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 flex justify-between items-center text-xs">
+            <div>
+              <span className="text-monitor-dim font-bold block">總排便次數</span>
+              <span className="text-[10px] text-monitor-dim mt-0.5">（標準：1-3天 1次）</span>
+            </div>
+            <span className="text-base font-extrabold text-amber-800 font-mono">{data.stools.length} 次</span>
+          </div>
+
+          {data.stools.length > 0 && (
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <span className="text-[9px] text-monitor-dim font-bold block">便便形狀（布里斯托尺度）</span>
+                <div className="flex h-3 rounded-full overflow-hidden border border-slate-200 bg-slate-100">
+                  {Object.entries(stoolForms).map(([formName, count]) => {
+                    if (count === 0) return null;
+                    const pct = (count / data.stools.length) * 100;
+                    const colorClass = formName === 'constipated' ? 'bg-amber-900' :
+                                       formName === 'normal' ? 'bg-amber-600' : 'bg-yellow-600';
+                    return (
+                       <div 
+                         key={formName}
+                         className={`${colorClass} h-full`} 
+                         style={{ width: `${pct}%` }} 
+                         title={`${formName}: ${count}次 (${Math.round(pct)}%)`}
+                       />
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 text-[8px] font-bold text-slate-600">
+                  {stoolForms.constipated > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-900" /> 乾硬/便秘 ({stoolForms.constipated}次)</span>}
+                  {stoolForms.normal > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-600" /> 正常/軟條 ({stoolForms.normal}次)</span>}
+                  {stoolForms.diarrhea > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-yellow-600" /> 稀水/腹瀉 ({stoolForms.diarrhea}次)</span>}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[9px] text-monitor-dim font-bold block">便便顏色分佈</span>
+                <div className="flex h-3 rounded-full overflow-hidden border border-slate-200 bg-slate-100">
+                  {Object.entries(stoolColors).map(([colName, count]) => {
+                    if (count === 0) return null;
+                    const pct = (count / data.stools.length) * 100;
+                    const colorClass = colName === 'brown' ? 'bg-amber-700' :
+                                       colName === 'dark_green' ? 'bg-emerald-800' :
+                                       colName === 'black' ? 'bg-slate-900' :
+                                       colName === 'red' ? 'bg-red-600' :
+                                       colName === 'clay' ? 'bg-slate-200' : 'bg-slate-400';
+                    return (
+                      <div 
+                        key={colName}
+                        className={`${colorClass} h-full`} 
+                        style={{ width: `${pct}%` }} 
+                        title={`${colName}: ${count}次 (${Math.round(pct)}%)`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap gap-2 text-[8px] font-bold text-slate-600">
+                  {stoolColors.brown > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-700" /> 黃褐 ({stoolColors.brown}次)</span>}
+                  {stoolColors.dark_green > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-800" /> 墨綠 ({stoolColors.dark_green}次)</span>}
+                  {stoolColors.black > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-slate-900" /> 黑色/瀝青 ({stoolColors.black}次)</span>}
+                  {stoolColors.red > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-600" /> 紅色/血便 ({stoolColors.red}次)</span>}
+                  {stoolColors.clay > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-slate-200 border border-slate-300" /> 灰白 ({stoolColors.clay}次)</span>}
+                  {stoolColors.other > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-slate-400" /> 其他 ({stoolColors.other}次)</span>}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderReportInterventions = (data) => {
+    const medCounts = {};
+    data.meds.forEach(m => {
+      const name = m.medicationName || '未命名藥物';
+      medCounts[name] = (medCounts[name] || 0) + 1;
+    });
+
+    const categoryLabels = {
+      nutrition: '飲食水分 🍉',
+      position: '姿勢擺位 🛌',
+      environment: '環境調整 🍃',
+      daily_care: '日常身體照護 🤲',
+      other: '其他照護需求 📝'
+    };
+
+    const careCounts = {};
+    data.cares.forEach(c => {
+      const text = c.requestText ? c.requestText.trim() : '';
+      const cat = c.requestCategory || 'other';
+      const key = text || categoryLabels[cat] || '其他照護需求';
+      if (!careCounts[key]) {
+        careCounts[key] = { count: 0, category: cat, isText: !!text };
+      }
+      careCounts[key].count++;
+    });
+
+    const totalCares = data.cares.length;
+
+    const categoryStyles = {
+      nutrition: 'bg-orange-50 border-orange-100 text-slate-700',
+      position: 'bg-cyan-50 border-cyan-100 text-slate-700',
+      environment: 'bg-emerald-50 border-emerald-100 text-slate-700',
+      daily_care: 'bg-indigo-50 border-indigo-100 text-slate-700',
+      other: 'bg-slate-50 border-slate-100 text-slate-700'
+    };
+
+    const categoryBadges = {
+      nutrition: 'bg-monitor-orange',
+      position: 'bg-monitor-cyan',
+      environment: 'bg-monitor-green',
+      daily_care: 'bg-monitor-indigo',
+      other: 'bg-monitor-dim'
+    };
+
+    const categoryEmojis = {
+      nutrition: '🍉',
+      position: '🛌',
+      environment: '🍃',
+      daily_care: '🤲',
+      other: '📝'
+    };
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print-card">
+        {/* 用藥紀錄 */}
+        <div className="border border-monitor-border rounded-xl p-4 space-y-3 bg-white">
+          <h5 className="text-xs font-bold text-slate-700 border-b border-monitor-border pb-1.5 flex items-center gap-1.5">
+            <Pill size={14} className="text-monitor-purple" /> 💊 用藥與給藥處置統計
+          </h5>
+          {Object.keys(medCounts).length === 0 ? (
+            <p className="text-[10px] text-monitor-dim py-4 text-center">此區間內無特殊給藥紀錄</p>
+          ) : (
+            <div className="overflow-y-auto max-h-[120px] pr-1 thin-scrollbar print:max-h-none print:overflow-visible">
+              <div className="flex flex-wrap gap-2 pt-1">
+                {Object.entries(medCounts).map(([name, count]) => (
+                  <div key={name} className="inline-flex items-center gap-1.5 bg-violet-50 border border-violet-100 text-slate-700 px-2.5 py-1.5 rounded-lg text-[10px] font-bold">
+                    <span className="font-semibold">{name}</span>
+                    <span className="bg-monitor-purple text-white px-1.5 py-0.5 rounded-full font-mono text-[9px] leading-none">
+                      {count} 次
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 照護需求 */}
+        <div className="border border-monitor-border rounded-xl p-4 space-y-3 bg-white">
+          <h5 className="text-xs font-bold text-slate-700 border-b border-monitor-border pb-1.5 flex items-center gap-1.5">
+            <HandHeart size={14} className="text-monitor-orange" /> 🤲 照護需求與介入次數
+          </h5>
+          {totalCares === 0 ? (
+            <p className="text-[10px] text-monitor-dim py-4 text-center">此區間內無特殊照護需求</p>
+          ) : (
+            <div className="overflow-y-auto max-h-[120px] pr-1 thin-scrollbar print:max-h-none print:overflow-visible">
+              <div className="flex flex-wrap gap-2 pt-1">
+                {Object.entries(careCounts).map(([label, info]) => {
+                  const cat = info.category;
+                  const count = info.count;
+                  const styleClass = categoryStyles[cat] || categoryStyles.other;
+                  const badgeClass = categoryBadges[cat] || categoryBadges.other;
+                  const emoji = categoryEmojis[cat] || '';
+                  return (
+                    <div key={label} className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 rounded-lg text-[10px] font-bold ${styleClass}`}>
+                      <span className="font-semibold">
+                        {info.isText ? `${emoji} ${label}` : label}
+                      </span>
+                      <span className={`text-white px-1.5 py-0.5 rounded-full font-mono text-[9px] leading-none ${badgeClass}`}>
+                        {count} 次
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+
+  const renderReportAlerts = (data) => {
+    const alerts = [];
+
+    if (data.spo2.min !== null && data.spo2.min < 95) {
+      alerts.push({
+        type: 'danger',
+        title: '低血氧警示',
+        text: `偵測到血氧飽和度 (SpO₂)—最低達 ${data.spo2.min}% (共 ${data.abnormal.spo2} 次低於 95%)，建議加強自主呼吸或進行低流量給氧評估。`
+      });
+    }
+
+    if (data.rr.max !== null && data.rr.max > 24) {
+      alerts.push({
+        type: 'warning',
+        title: '呼吸急促警示',
+        text: `呼吸速率最高達 ${data.rr.max} 次/分 (共 ${data.abnormal.rr} 次大於 24 rpm)，可能伴隨疼痛、發熱或焦慮，請加強評估患者舒適度。`
+      });
+    }
+
+    if (data.hr.max !== null && (data.hr.max > 100 || data.hr.min < 50)) {
+      const text = data.hr.max > 100 && data.hr.min < 50
+        ? `心率有偏高/偏低劇烈波動 (${data.hr.min} - ${data.hr.max} bpm)，請持續觀察心血管狀態。`
+        : data.hr.max > 100 
+          ? `心搏過速 (最高達 ${data.hr.max} bpm)，請評估是否發燒、疼痛或心血管不適。`
+          : `心搏過慢 (最低達 ${data.hr.min} bpm)，請評估患者意識狀態與活動度。`;
+      alerts.push({
+        type: 'warning',
+        title: '心率異常提示',
+        text
+      });
+    }
+
+    if (data.sbp.max !== null && (data.sbp.max > 140 || data.sbp.min < 90)) {
+      const text = data.sbp.max > 140
+        ? `血壓偏高 (收縮壓最高達 ${data.sbp.max} mmHg)，請注意是否頭暈或頭痛。`
+        : `血壓偏低 (收縮壓最低達 ${data.sbp.min} mmHg)，請注意防範姿勢性低血壓與意識狀態。`;
+      alerts.push({
+        type: 'info',
+        title: '血壓波動提示',
+        text
+      });
+    }
+
+    let brightRedUrineCount = data.urines.filter(u => u.color === 'bright_red').length;
+    let teaUrineCount = data.urines.filter(u => u.color === 'tea').length;
+    if (brightRedUrineCount > 0) {
+      alerts.push({
+        type: 'danger',
+        title: '肉眼血尿警示',
+        text: `發現鮮紅「肉眼血尿」記錄共 ${brightRedUrineCount} 次，此屬重大臨床警訊，請密切追蹤並立即聯絡居家照護師或主治醫療團隊。`
+      });
+    }
+    if (teaUrineCount > 0) {
+      alerts.push({
+        type: 'warning',
+        title: '尿液深茶色提示',
+        text: `尿液呈「深茶色」共 ${teaUrineCount} 次，可能提示水分攝取不足、脫水或黃疸。若無心腎限水醫囑，請鼓勵多補充水分。`
+      });
+    }
+
+    let blackStoolCount = data.stools.filter(s => s.color === 'black').length;
+    let redStoolCount = data.stools.filter(s => s.color === 'red').length;
+    let clayStoolCount = data.stools.filter(s => s.color === 'clay').length;
+    if (blackStoolCount > 0 || redStoolCount > 0) {
+      alerts.push({
+        type: 'danger',
+        title: '消化道出血警示',
+        text: `曾紀錄異常便色 (${blackStoolCount > 0 ? '黑色瀝青便' : ''}${redStoolCount > 0 ? ' 血便/紅便' : ''})，請防範上/下消化道出血，應儘速就醫或聯繫醫療人員。`
+      });
+    }
+    if (clayStoolCount > 0) {
+      alerts.push({
+        type: 'warning',
+        title: '膽道阻塞提示',
+        text: `曾紀錄「灰白色便」，建議注意是否有肝膽或胰臟疾病，請聯絡居家照護師評估。`
+      });
+    }
+
+    const lastStoolLog = logs.find(l => l.type === 'event' && l.eventType === 'urine' && l.excretionType === 'stool');
+    if (lastStoolLog) {
+      const hoursSinceStool = (new Date().getTime() - new Date(lastStoolLog.timestamp).getTime()) / (60 * 60 * 1000);
+      if (hoursSinceStool > 72) {
+        alerts.push({
+          type: 'warning',
+          title: '排便延遲提示',
+          text: `已達 ${Math.round(hoursSinceStool / 24)} 天（${Math.round(hoursSinceStool / 24)}天）未有排便記錄，請注意患者腹脹感，必要時與護理團隊溝通使用軟便處置。`
+        });
+      }
+    } else if (logs.length > 0) {
+      alerts.push({
+        type: 'warning',
+        title: '無排便紀錄',
+        text: `系統中無任何排便紀錄，請留意患者腸胃蠕動與排便情形，防止嚴重便秘。`
+      });
+    }
+
+    if (alerts.length === 0) {
+      return (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3 print-card">
+          <Check className="text-emerald-500 w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-xs font-extrabold text-emerald-800">✅ 照護警示摘要</h4>
+            <p className="text-[10px] text-emerald-700 mt-1">
+              此區間內生理指標與分泌物排泄狀況穩定，無觸發任何臨床警示指標。
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-red-50/50 border border-red-200 rounded-xl p-4 space-y-3 print-card">
+        <h4 className="text-xs font-extrabold text-red-800 flex items-center gap-1.5 uppercase">
+          <AlertTriangle size={15} className="text-red-600" />
+          <span>⚠️ 臨床照護警示摘要</span>
+        </h4>
+        <div className="space-y-2.5">
+          {alerts.map((alt, idx) => {
+            const borderClass = alt.type === 'danger' ? 'border-rose-300 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60';
+            const textClass = alt.type === 'danger' ? 'text-rose-800' : 'text-amber-800';
+            const titleClass = alt.type === 'danger' ? 'text-rose-900 font-extrabold' : 'text-amber-900 font-extrabold';
+            return (
+              <div key={idx} className={`p-2.5 border rounded-lg text-[10px] leading-relaxed ${borderClass} ${textClass}`}>
+                <span className={`${titleClass} mr-1.5`}>【{alt.title}】</span>
+                <span>{alt.text}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // 產生中文醫護交班報告
   const generateHandoverMarkdown = useCallback(() => {
     const now = new Date();
@@ -3179,6 +3732,16 @@ function App() {
           >
             歷史趨勢
           </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`flex-1 text-center py-1.5 text-xs font-bold rounded-md transition-all ${
+              activeTab === 'reports' 
+                ? 'bg-white text-monitor-text shadow-sm border border-slate-200/40' 
+                : 'text-monitor-dim hover:text-monitor-text'
+            }`}
+          >
+            數據報告
+          </button>
         </div>
 
         {/* 2. 生理數據區塊 (即時監控頁籤：即時數據網格) */}
@@ -3330,63 +3893,105 @@ function App() {
             {renderEventStatistics()}
           </div>
         )}
-
-
-        {/* 4. 照護數據總結 (交班報告) */}
-        <section className="bg-monitor-card border border-monitor-border rounded-xl p-4 space-y-3 shadow-sm">
-          <div className="flex justify-between items-center text-xs">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
-              <Clipboard size={13} className="text-monitor-cyan" /> 照護數據總結 (交班報告)
-            </h2>
-
-
-            <div className="flex bg-monitor-bg border border-monitor-border rounded-md overflow-hidden p-0.5">
-              <button
-                type="button"
-                onClick={() => setReportDuration(12)}
-                className={`text-[9px] uppercase font-bold px-2 py-1 rounded ${reportDuration === 12 ? 'bg-monitor-cyan text-white' : 'text-monitor-dim'}`}
-              >
-                12小時
-              </button>
-              <button
-                type="button"
-                onClick={() => setReportDuration(24)}
-                className={`text-[9px] uppercase font-bold px-2 py-1 rounded ${reportDuration === 24 ? 'bg-monitor-cyan text-white' : 'text-monitor-dim'}`}
-              >
-                24小時
-              </button>
+        {/* 3.5 數據報告頁籤 */}
+        {activeTab === 'reports' && (
+          <div className="space-y-4 transition-opacity duration-300 animate-fade-in print-container">
+            {/* 報表控制與操作欄 */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-monitor-card border border-monitor-border rounded-xl p-3 shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-700">選擇分析區間：</span>
+                <div className="flex bg-monitor-bg border border-monitor-border rounded-md overflow-hidden p-0.5">
+                  {[12, 24, 72, 168].map(h => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => setReportDuration(h)}
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded transition-all ${
+                        reportDuration === h ? 'bg-monitor-cyan text-white shadow-sm' : 'text-monitor-dim hover:text-monitor-text'
+                      }`}
+                    >
+                      {h >= 24 ? `${h / 24}天` : `${h}小時`}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* 報告內容框 */}
-          <div className="relative">
-            <pre 
-              id="handover-raw"
-              className="w-full text-[11px] font-mono text-monitor-text bg-monitor-bg border border-monitor-border rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto no-scrollbar"
-            >
-              {handoverReport}
-            </pre>
-            
-            {/* 複製按鈕 */}
-            <button
-              id="copy-handover-btn"
-              onClick={handleCopyReport}
-              className={`absolute top-2 right-2 p-2 rounded-lg border transition shadow-sm ${
-                copySuccess 
-                  ? 'bg-monitor-green border-monitor-green text-white' 
-                  : 'bg-white border-monitor-border hover:border-monitor-cyan text-monitor-cyan'
-              }`}
-              aria-label="複製報告"
-            >
-              {copySuccess ? <Check size={13} /> : <Copy size={13} />}
-            </button>
-          </div>
+            {/* 報告主體內容 - 列印時填滿頁面 */}
+            <div className="bg-monitor-card border border-monitor-border rounded-xl p-5 shadow-sm space-y-5 print-card">
+              {/* 報告標頭 */}
+              <div className="border-b-2 border-slate-700 pb-3 flex justify-between items-start">
+                <div>
+                  <h2 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
+                    <FileText size={16} className="text-monitor-cyan" /> CareFlow 臨床照護數據分析報告
+                  </h2>
+                  <p className="text-[10px] text-monitor-dim mt-0.5">
+                    報告產出時間：{new Date().toLocaleString([], { hour12: false })} | 分析區間：過去 {reportDuration} 小時
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-extrabold px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 uppercase tracking-wider">
+                    {gasUrl ? '雲端同步模式' : '本地儲存模式'}
+                  </span>
+                </div>
+              </div>
 
-          <div className="flex items-center gap-2 text-[10px] text-monitor-dim bg-slate-100 p-2.5 rounded-lg border border-slate-200">
-            <AlertCircle size={14} className="text-monitor-cyan flex-shrink-0" />
-            <p>報告可一鍵複製，以便透過 LINE/簡訊傳送給家人或在醫師巡房、換班時立即出示呈現。</p>
+
+
+              {/* 臨床警示摘要 */}
+              {renderReportAlerts(reportStats)}
+
+              {/* 生理數據統計圖表 */}
+              {renderReportVitalsStats(reportStats)}
+
+              {/* 水分排泄 */}
+              {renderReportExcretionStats(reportStats)}
+
+              {/* 給藥與處置紀錄 */}
+              {renderReportInterventions(reportStats)}
+            </div>
+
+            {/* 純文字交班報告 - 整合於此 */}
+            <section className="bg-monitor-card border border-monitor-border rounded-xl p-4 space-y-3 shadow-sm no-print">
+              <div className="flex justify-between items-center text-xs">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-monitor-dim flex items-center gap-1.5">
+                  <Clipboard size={13} className="text-monitor-cyan" /> 醫護交班報告 (可複製純文字)
+                </h2>
+              </div>
+
+              {/* 報告內容框 */}
+              <div className="relative">
+                <pre 
+                  id="handover-raw"
+                  className="w-full text-[11px] font-mono text-monitor-text bg-monitor-bg border border-monitor-border rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto no-scrollbar"
+                >
+                  {handoverReport}
+                </pre>
+                
+                {/* 複製按鈕 */}
+                <button
+                  type="button"
+                  id="copy-handover-btn"
+                  onClick={handleCopyReport}
+                  className={`absolute top-2 right-2 p-2 rounded-lg border transition shadow-sm ${
+                    copySuccess 
+                      ? 'bg-monitor-green border-monitor-green text-white' 
+                      : 'bg-white border-monitor-border hover:border-monitor-cyan text-monitor-cyan'
+                  }`}
+                  aria-label="複製報告"
+                >
+                  {copySuccess ? <Check size={13} /> : <Copy size={13} />}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 text-[10px] text-monitor-dim bg-slate-100 p-2.5 rounded-lg border border-slate-200">
+                <AlertCircle size={14} className="text-monitor-cyan flex-shrink-0" />
+                <p>報告可一鍵複製，以便透過 LINE/簡訊傳送給家人或在醫師巡房、換班時立即出示呈現。</p>
+              </div>
+            </section>
           </div>
-        </section>
+        )}
+
 
         {/* 5. telemetry 記錄串流歷史 */}
         {(() => {
@@ -4493,22 +5098,24 @@ function App() {
         </div>
       )}
 
-      <SettingsModal
-        show={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-        fontScale={fontScale}
-        setFontScale={setFontScale}
-        gasUrl={gasUrl}
-        onGasUrlChange={(newUrl) => {
-          const trimmed = newUrl.trim();
-          setGasUrl(trimmed);
-          if (trimmed) {
-            localStorage.setItem('careflow_gas_url', trimmed);
-          } else {
-            localStorage.removeItem('careflow_gas_url');
-          }
-        }}
-      />
+      {showSettingsModal && (
+        <SettingsModal
+          show={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          fontScale={fontScale}
+          setFontScale={setFontScale}
+          gasUrl={gasUrl}
+          onGasUrlChange={(newUrl) => {
+            const trimmed = newUrl.trim();
+            setGasUrl(trimmed);
+            if (trimmed) {
+              localStorage.setItem('careflow_gas_url', trimmed);
+            } else {
+              localStorage.removeItem('careflow_gas_url');
+            }
+          }}
+        />
+      )}
 
       {/* 歷史趨勢圖表展開大圖對話框 */}
       {expandedChart && (
@@ -4665,7 +5272,7 @@ function SettingsModal({
         
         <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-            <Settings size={16} /> 顯示與介面設定
+            <Settings size={16} /> 顯示與系統設定
           </h3>
           <button 
             type="button"

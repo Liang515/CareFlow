@@ -35,6 +35,26 @@
   scrollbar-width: none;  /* Firefox */
 }
 
+/* Thin custom scrollbar */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 /* Modal slide-up animation */
 @keyframes slide-up {
   from {
@@ -93,4 +113,67 @@
     font-size: 16px !important;
   }
 }
+
+/* Print Media Styles - A4 format, hide UI, black and white */
+@media print {
+  /* Reset body and background for printing */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+  }
+  
+  /* Hide non-printable elements */
+  header,
+  footer,
+  .no-print,
+  .print-hidden,
+  button,
+  input,
+  select,
+  textarea,
+  .fixed,
+  /* Hide tab navigation bar */
+  main > div.flex,
+  /* Hide history stream on print */
+  section.space-y-2,
+  .no-print-section {
+    display: none !important;
+  }
+
+  /* Force print-container to display and fill the page */
+  .print-container {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Make sure card borders look clean on paper and break nicely */
+  .print-card {
+    page-break-inside: avoid;
+    border: 1px solid #94a3b8 !important;
+    margin-bottom: 1.5rem !important;
+    padding: 1.5rem !important;
+    background: white !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+  }
+  
+  /* Keep print text clean and visible */
+  .text-slate-800, .text-slate-700, .text-monitor-text {
+    color: #000000 !important;
+  }
+  .text-monitor-dim {
+    color: #4b5563 !important;
+  }
+}
+
 
