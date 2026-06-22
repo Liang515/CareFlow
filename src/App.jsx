@@ -3913,7 +3913,7 @@ function App() {
             {/* 報告主體內容 - 列印時填滿頁面 */}
             <div className="bg-monitor-card border border-monitor-border rounded-xl p-5 shadow-sm space-y-5 print-card">
               {/* 報告標頭 */}
-              <div className="border-b-2 border-slate-700 pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+              <div className="border-b-2 border-slate-700 pb-3">
                 <div className="min-w-0 flex-1">
                   <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 flex items-center gap-1.5 uppercase tracking-wide break-words">
                     <FileText size={16} className="text-monitor-cyan flex-shrink-0" /> CareFlow 臨床照護數據分析報告
@@ -3923,11 +3923,6 @@ function App() {
                     <span className="hidden sm:inline"> | </span>
                     分析區間：過去 {reportDuration} 小時
                   </p>
-                </div>
-                <div className="sm:text-right flex-shrink-0">
-                  <span className="inline-block text-[9px] font-extrabold px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 uppercase tracking-wider">
-                    {gasUrl ? '雲端同步模式' : '本地儲存模式'}
-                  </span>
                 </div>
               </div>
 
