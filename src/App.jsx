@@ -1656,16 +1656,9 @@ function App() {
       return p.val / elapsedHours;
     });
 
-    const movingAverageRates = rates.map((r, i) => {
-      const start = Math.max(0, i - 2);
-      const subset = rates.slice(start, i + 1);
-      const sum = subset.reduce((acc, val) => acc + val, 0);
-      return sum / subset.length;
-    });
-
-    const maxRate = Math.max(...movingAverageRates, 10);
+    const maxRate = Math.max(...rates, 10);
     const movingAverages = points.map((p, i) => {
-      const avgRate = movingAverageRates[i];
+      const avgRate = rates[i];
       const rateHeight = (avgRate / maxRate) * (height - paddingY * 2 - (isLarge ? 18 : 12));
       const y = height - paddingY - 2 - Math.max(0, Math.min(height - paddingY * 2 - (isLarge ? 18 : 12), rateHeight));
       return { x: p.x, y, avgRate };
@@ -1679,7 +1672,7 @@ function App() {
             <span>💧 尿量排泄趨勢 (Urine Output)</span>
             <span className="text-[9px] font-normal text-slate-400 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded-full whitespace-nowrap">
               <span className="inline-block w-2.5 h-0 border-t-2 border-dashed border-cyan-500 mr-1 align-middle"></span>
-              每小時尿量 (3次移動平均)
+              每小時排尿速率 (cc/hr)
             </span>
           </span>
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -1874,7 +1867,7 @@ function App() {
                             y: p.y,
                             time: timeStr,
                             singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
-                            avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
+                            avgVal: `區間速率: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
                           });
                         }}
                         onMouseLeave={() => {
@@ -1896,7 +1889,7 @@ function App() {
                               y: p.y,
                               time: timeStr,
                               singleVal: `單次: ${p.val} cc (${getUrineColorText(p.color)})`,
-                              avgVal: `平均: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
+                              avgVal: `區間速率: ${movingAverages[i].avgRate.toFixed(1)} cc/hr`
                             });
                           }
                         }}
@@ -1907,7 +1900,7 @@ function App() {
               );
             })}
 
-            {/* 繪製 3次移動平均線 */}
+            {/* 繪製排尿速率線 */}
             {movingAverages.length >= 2 && (
               <>
                 <path
