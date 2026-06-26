@@ -4360,7 +4360,7 @@ function App() {
           onClick={openVitalsModalWithLatest}
           className="flex-1 py-2 bg-monitor-green text-white font-extrabold rounded-lg hover:bg-monitor-green/90 active:scale-95 transition shadow-sm flex items-center justify-center gap-0.5 text-[11px] min-[360px]:text-xs tracking-wider whitespace-nowrap"
         >
-          <Plus size={13} /> 生理數據
+          <span className="flex items-center gap-0.5">🩺 生理</span>
         </button>
         <button
           type="button"
