@@ -4354,13 +4354,13 @@ function App() {
       </main>
 
       {/* 底部固定操作欄 (Sticky Bottom Action Bar) */}
-      <footer className="bg-white border-t border-monitor-border p-3 flex gap-2 z-30 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      <footer className="bg-white border-t border-monitor-border py-2 px-2.5 flex gap-1.5 z-30 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <button
           type="button"
           onClick={openVitalsModalWithLatest}
-          className="flex-1 py-3 bg-monitor-green text-white font-extrabold rounded-xl hover:bg-monitor-green/90 active:scale-95 transition shadow-sm flex items-center justify-center gap-1 text-xs tracking-wider"
+          className="flex-1 py-2 bg-monitor-green text-white font-extrabold rounded-lg hover:bg-monitor-green/90 active:scale-95 transition shadow-sm flex items-center justify-center gap-0.5 text-[11px] min-[360px]:text-xs tracking-wider whitespace-nowrap"
         >
-          <Plus size={14} /> 生理數據
+          <Plus size={13} /> 生理數據
         </button>
         <button
           type="button"
@@ -4371,7 +4371,7 @@ function App() {
             setUrineColor('clear_yellow');
             setShowUrineModal(true); 
           }}
-          className="py-3 px-3 bg-monitor-cyan/10 border border-monitor-cyan/20 text-monitor-cyan font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+          className="py-2 px-1.5 min-[360px]:px-2.5 bg-monitor-cyan/10 border border-monitor-cyan/20 text-monitor-cyan font-bold rounded-lg active:scale-95 transition flex items-center justify-center gap-0.5 text-[10px] min-[360px]:text-[11px] min-[390px]:text-xs whitespace-nowrap"
         >
           <span className="flex items-center gap-0.5">💧/💩 排泄</span>
         </button>
@@ -4379,23 +4379,23 @@ function App() {
         <button
           type="button"
           onClick={() => { setNoteText(''); setShowMedModal(true); }}
-          className="py-3 px-3 bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+          className="py-2 px-1.5 min-[360px]:px-2.5 bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple font-bold rounded-lg active:scale-95 transition flex items-center justify-center gap-0.5 text-[10px] min-[360px]:text-[11px] min-[390px]:text-xs whitespace-nowrap"
         >
-          <Pill size={13} /> 用藥
+          <Pill size={12} /> 用藥
         </button>
         <button
           type="button"
           onClick={() => { setNoteText(''); setShowCareRequestModal(true); }}
-          className="py-3 px-3 bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+          className="py-2 px-1.5 min-[360px]:px-2.5 bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange font-bold rounded-lg active:scale-95 transition flex items-center justify-center gap-0.5 text-[10px] min-[360px]:text-[11px] min-[390px]:text-xs whitespace-nowrap"
         >
-          <HandHeart size={13} /> 需求
+          <HandHeart size={12} /> 需求
         </button>
         <button
           type="button"
           onClick={() => { setJournalTitle(''); setJournalContent(''); setShowJournalModal(true); }}
-          className="py-3 px-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+          className="py-2 px-1.5 min-[360px]:px-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 font-bold rounded-lg active:scale-95 transition flex items-center justify-center gap-0.5 text-[10px] min-[360px]:text-[11px] min-[390px]:text-xs whitespace-nowrap"
         >
-          <BookOpen size={13} /> 日誌
+          <BookOpen size={12} /> 日誌
         </button>
       </footer>
 
