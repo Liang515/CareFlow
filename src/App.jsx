@@ -4381,21 +4381,21 @@ function App() {
           onClick={() => { setNoteText(''); setShowMedModal(true); }}
           className="py-2 px-1.5 min-[360px]:px-2.5 bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple font-bold rounded-lg active:scale-95 transition flex items-center justify-center gap-0.5 text-[10px] min-[360px]:text-[11px] min-[390px]:text-xs whitespace-nowrap"
         >
-          <Pill size={12} /> 用藥
+          <span className="flex items-center gap-0.5">💊 用藥</span>
         </button>
         <button
           type="button"
           onClick={() => { setNoteText(''); setShowCareRequestModal(true); }}
           className="py-2 px-1.5 min-[360px]:px-2.5 bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange font-bold rounded-lg active:scale-95 transition flex items-center justify-center gap-0.5 text-[10px] min-[360px]:text-[11px] min-[390px]:text-xs whitespace-nowrap"
         >
-          <HandHeart size={12} /> 需求
+          <span className="flex items-center gap-0.5">🫶🏼 需求</span>
         </button>
         <button
           type="button"
           onClick={() => { setJournalTitle(''); setJournalContent(''); setShowJournalModal(true); }}
           className="py-2 px-1.5 min-[360px]:px-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 font-bold rounded-lg active:scale-95 transition flex items-center justify-center gap-0.5 text-[10px] min-[360px]:text-[11px] min-[390px]:text-xs whitespace-nowrap"
         >
-          <BookOpen size={12} /> 日誌
+          <span className="flex items-center gap-0.5">🗒️ 日誌</span>
         </button>
       </footer>
 
