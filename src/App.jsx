@@ -5202,7 +5202,7 @@ function App() {
                   value={journalTitle}
                   onChange={(e) => setJournalTitle(e.target.value)}
                   placeholder="例如：夜間照護觀察、家屬交班事項..."
-                  className="w-full py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-indigo-400"
+                  className="w-full py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-base text-monitor-text focus:outline-none focus:border-indigo-400"
                 />
               </div>
 
@@ -5219,7 +5219,7 @@ function App() {
                   onChange={(e) => setJournalContent(e.target.value)}
                   placeholder={"可以記錄：\n• 病情觀察與變化\n• 用藥後反應\n• 情緒或精神狀態\n• 家屬交班注意事項\n• 醫師巡房交代事項\n• 任何需要留存的照護紀錄..."}
                   rows={8}
-                  className="w-full py-3 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-indigo-400 resize-none leading-relaxed"
+                  className="w-full py-3 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-base text-monitor-text focus:outline-none focus:border-indigo-400 resize-none leading-relaxed"
                 />
               </div>
 
