@@ -4373,7 +4373,7 @@ function App() {
           }}
           className="py-2 px-1.5 min-[360px]:px-2.5 bg-monitor-cyan/10 border border-monitor-cyan/20 text-monitor-cyan font-bold rounded-lg active:scale-95 transition flex items-center justify-center gap-0.5 text-[10px] min-[360px]:text-[11px] min-[390px]:text-xs whitespace-nowrap"
         >
-          <span className="flex items-center gap-0.5">💧/💩 排泄</span>
+          <span className="flex items-center gap-0.5">🐳 排泄</span>
         </button>
 
         <button
