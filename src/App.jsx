@@ -22,7 +22,8 @@ import {
   Maximize2,
   Moon,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  BookOpen
 } from 'lucide-react';
 
 // 判斷是否為觸控設備 (Coarse Pointer)
@@ -602,6 +603,13 @@ function App() {
   const [customMed, setCustomMed] = useState('');
   const [noteText, setNoteText] = useState('');
   const [careRequestText, setCareRequestText] = useState('');
+
+  // 照護日誌狀態
+  const [showJournalModal, setShowJournalModal] = useState(false);
+  const [showJournalListModal, setShowJournalListModal] = useState(false);
+  const [journalTitle, setJournalTitle] = useState('');
+  const [journalContent, setJournalContent] = useState('');
+  const [expandedJournalId, setExpandedJournalId] = useState(null);
 
   // 計算所得的平均壓 (MAP)
   const calculatedMap = Math.round(diastolic + (systolic - diastolic) / 3);
@@ -2262,7 +2270,7 @@ function App() {
 
   // 繪製照護與給藥事件時間線列表 (支援正常與最大化模式)
   const renderTimelineList = (isExpanded = false) => {
-    const allEventLogs = logs.filter(l => l.type === 'event' && (l.eventType === 'medication' || l.eventType === 'care_request'));
+    const allEventLogs = logs.filter(l => l.type === 'event' && (l.eventType === 'medication' || l.eventType === 'care_request' || l.eventType === 'journal'));
     const hasEvents = allEventLogs.length > 0;
 
     if (!hasEvents) {
@@ -2301,6 +2309,7 @@ function App() {
             const logTimeStr = `${String(logDate.getMonth() + 1).padStart(2, '0')}/${String(logDate.getDate()).padStart(2, '0')} ${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
             const isMed = log.eventType === 'medication';
             const isSleep = log.requestCategory === 'sleep';
+            const isJournal = log.eventType === 'journal';
             
             return (
               <div key={log.id} className="text-[10px] bg-white border border-slate-200/60 p-2 rounded shadow-sm flex flex-col gap-1">
@@ -2309,6 +2318,10 @@ function App() {
                     {isMed ? (
                       <span className="bg-monitor-purple/10 border border-monitor-purple/20 text-monitor-purple px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
                         給藥處置
+                      </span>
+                    ) : isJournal ? (
+                      <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
+                        照護日誌
                       </span>
                     ) : isSleep ? (
                       <span className="bg-monitor-indigo/10 border border-monitor-indigo/20 text-monitor-indigo px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap flex-shrink-0">
@@ -2320,7 +2333,7 @@ function App() {
                       </span>
                     )}
                     <span className="font-bold text-slate-700 break-words min-w-0 flex-1 leading-normal">
-                      {isMed ? log.medicationName : isSleep ? (log.sleepStatus === 'asleep' ? '進入睡眠 (睡著)' : '恢復清醒 (醒來)') : log.requestText}
+                      {isMed ? log.medicationName : isJournal ? (log.journalTitle || log.journalContent.substring(0, 30) + (log.journalContent.length > 30 ? '...' : '')) : isSleep ? (log.sleepStatus === 'asleep' ? '進入睡眠 (睡著)' : '恢復清醒 (醒來)') : log.requestText}
                     </span>
                   </div>
                   <span className="font-mono text-slate-400 font-semibold text-[9px] flex-shrink-0 pt-0.5">
@@ -2330,6 +2343,11 @@ function App() {
                 {log.notes && (
                   <div className="text-[9px] text-slate-400 pl-1.5 border-l border-slate-200 mt-0.5 break-words">
                     備註: {log.notes}
+                  </div>
+                )}
+                {isJournal && log.journalContent && (
+                  <div className="text-[9px] text-slate-500 pl-1.5 border-l-2 border-indigo-200 mt-0.5 break-words line-clamp-2 leading-relaxed">
+                    {log.journalContent.substring(0, 80)}{log.journalContent.length > 80 ? '...' : ''}
                   </div>
                 )}
               </div>
@@ -2640,6 +2658,27 @@ function App() {
     setCareRequestText('');
     setShowCareRequestModal(false);
     
+    // 同步到雲端 Google Sheets
+    uploadLogToCloud(newLog);
+  };
+
+  // 儲存照護日誌
+  const handleAddJournal = () => {
+    const content = journalContent.trim();
+    if (!content) return;
+    const newLog = {
+      id: generateUniqueId(),
+      timestamp: new Date().toISOString(),
+      type: 'event',
+      eventType: 'journal',
+      journalTitle: journalTitle.trim() || undefined,
+      journalContent: content
+    };
+    setLogs(prev => [newLog, ...prev]);
+    setJournalTitle('');
+    setJournalContent('');
+    setShowJournalModal(false);
+
     // 同步到雲端 Google Sheets
     uploadLogToCloud(newLog);
   };
@@ -3991,6 +4030,7 @@ function App() {
             if (logFilter === 'urine') return log.type === 'event' && log.eventType === 'urine';
             if (logFilter === 'medication') return log.type === 'event' && log.eventType === 'medication';
             if (logFilter === 'care_request') return log.type === 'event' && log.eventType === 'care_request';
+            if (logFilter === 'journal') return log.type === 'event' && log.eventType === 'journal';
             return true;
           });
 
@@ -4039,7 +4079,8 @@ function App() {
                   { label: '生理數據', value: 'vitals', count: logs.filter(l => l.type === 'vitals').length },
                   { label: '排泄記錄', value: 'urine', count: logs.filter(l => l.type === 'event' && l.eventType === 'urine').length },
                   { label: '給藥處置', value: 'medication', count: logs.filter(l => l.type === 'event' && l.eventType === 'medication').length },
-                  { label: '照護需求', value: 'care_request', count: logs.filter(l => l.type === 'event' && l.eventType === 'care_request').length }
+                  { label: '照護需求', value: 'care_request', count: logs.filter(l => l.type === 'event' && l.eventType === 'care_request').length },
+                  { label: '照護日誌', value: 'journal', count: logs.filter(l => l.type === 'event' && l.eventType === 'journal').length }
                 ].map(tab => (
                   <button
                     key={tab.value}
@@ -4150,6 +4191,10 @@ function App() {
                                             <span className="bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
                                               照護需求
                                             </span>
+                                          ) : log.eventType === 'journal' ? (
+                                            <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider">
+                                              照護日誌
+                                            </span>
                                           ) : log.eventType === 'urine' ? (
                                             <span className={log.excretionType === 'stool' 
                                               ? "bg-amber-600/10 border border-amber-600/20 text-amber-700 dark:text-amber-400 px-1.5 py-0.2 rounded text-[8px] uppercase font-bold tracking-wider"
@@ -4241,6 +4286,33 @@ function App() {
                                               <div>
                                                 照護需求: <strong className="text-monitor-orange">{log.requestText}</strong>
                                               </div>
+                                            ) : log.eventType === 'journal' ? (
+                                              <div className="space-y-1">
+                                                {log.journalTitle && (
+                                                  <div className="font-bold text-indigo-600">
+                                                    {log.journalTitle}
+                                                  </div>
+                                                )}
+                                                <div 
+                                                  className="text-slate-600 leading-relaxed cursor-pointer select-none"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setExpandedJournalId(prev => prev === log.id ? null : log.id);
+                                                  }}
+                                                >
+                                                  {expandedJournalId === log.id ? (
+                                                    <div className="whitespace-pre-wrap break-words border-l-2 border-indigo-200 pl-2">
+                                                      {log.journalContent}
+                                                      <span className="text-[8px] text-indigo-400 font-bold ml-1 inline-block mt-1">▲ 收合</span>
+                                                    </div>
+                                                  ) : (
+                                                    <div>
+                                                      {log.journalContent.substring(0, 80)}{log.journalContent.length > 80 ? '...' : ''}
+                                                      {log.journalContent.length > 80 && <span className="text-[8px] text-indigo-400 font-bold ml-1">▼ 展開閱讀</span>}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
                                             ) : (
                                               <div>
                                                 給藥: <strong className="text-monitor-purple">{log.medicationName}</strong>
@@ -4249,7 +4321,7 @@ function App() {
                                           </div>
                                         )}
                                         
-                                        {log.notes && (
+                                        {log.notes && log.eventType !== 'journal' && (
                                           <p className="text-[9px] text-monitor-dim italic border-l border-slate-200 pl-1.5 mt-0.5">
                                             「{log.notes}」
                                           </p>
@@ -4317,6 +4389,13 @@ function App() {
           className="py-3 px-3 bg-monitor-orange/10 border border-monitor-orange/20 text-monitor-orange font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
         >
           <HandHeart size={13} /> 需求
+        </button>
+        <button
+          type="button"
+          onClick={() => { setJournalTitle(''); setJournalContent(''); setShowJournalModal(true); }}
+          className="py-3 px-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-xs"
+        >
+          <BookOpen size={13} /> 日誌
         </button>
       </footer>
 
@@ -5083,6 +5162,202 @@ function App() {
                 </div>
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 照護日誌撰寫對話框 */}
+      {showJournalModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center px-4 animate-fade-in" onClick={() => setShowJournalModal(false)}>
+          <div className="bg-monitor-card border-t-4 border-indigo-500 rounded-t-2xl w-full max-w-md p-5 pb-6 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+            
+            <div className="flex justify-between items-center pb-2 border-b border-monitor-border">
+              <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
+                <BookOpen size={16} /> 撰寫照護日誌
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowJournalListModal(true)}
+                  className="text-[9px] font-bold text-indigo-500 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-full hover:bg-indigo-100 transition active:scale-95"
+                >
+                  📖 瀏覽日誌 ({logs.filter(l => l.eventType === 'journal').length})
+                </button>
+                <button 
+                  onClick={() => setShowJournalModal(false)}
+                  className="text-monitor-dim hover:text-monitor-text"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              
+              {/* 標題輸入 */}
+              <div className="space-y-1">
+                <label className="font-semibold text-indigo-600 block">日誌標題 (選填)</label>
+                <input 
+                  type="text" 
+                  value={journalTitle}
+                  onChange={(e) => setJournalTitle(e.target.value)}
+                  placeholder="例如：夜間照護觀察、家屬交班事項..."
+                  className="w-full py-2 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-indigo-400"
+                />
+              </div>
+
+              {/* 內文區域 */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="font-semibold text-indigo-600">日誌內容</label>
+                  <span className={`text-[9px] font-mono ${journalContent.length > 0 ? 'text-indigo-400' : 'text-monitor-dim'}`}>
+                    {journalContent.length} 字
+                  </span>
+                </div>
+                <textarea
+                  value={journalContent}
+                  onChange={(e) => setJournalContent(e.target.value)}
+                  placeholder={"可以記錄：\n• 病情觀察與變化\n• 用藥後反應\n• 情緒或精神狀態\n• 家屬交班注意事項\n• 醫師巡房交代事項\n• 任何需要留存的照護紀錄..."}
+                  rows={8}
+                  className="w-full py-3 px-3 bg-monitor-bg border border-monitor-border rounded-lg text-xs text-monitor-text focus:outline-none focus:border-indigo-400 resize-none leading-relaxed"
+                />
+              </div>
+
+              {/* 儲存按鈕 */}
+              <button
+                type="button"
+                onClick={handleAddJournal}
+                disabled={!journalContent.trim()}
+                className="w-full py-3 bg-indigo-600 text-white font-extrabold uppercase rounded-lg hover:bg-indigo-700 transition text-xs tracking-wider disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+              >
+                確認儲存日誌
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 照護日誌瀏覽列表對話框 */}
+      {showJournalListModal && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center px-4 transition-opacity animate-fade-in" 
+          onClick={() => setShowJournalListModal(false)}
+        >
+          <div 
+            className="bg-monitor-card border border-indigo-200 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl animate-slide-up max-h-[85vh] flex flex-col" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-monitor-border flex-shrink-0">
+              <h3 className="text-sm font-bold text-indigo-600 flex items-center gap-1.5">
+                📖 照護日誌記錄 (時間序列)
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-monitor-dim font-bold bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                  共 {logs.filter(l => l.eventType === 'journal').length} 篇
+                </span>
+                <button 
+                  type="button"
+                  onClick={() => setShowJournalListModal(false)}
+                  className="text-monitor-dim hover:text-monitor-text transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-y-auto no-scrollbar flex-1 space-y-2.5 p-1">
+              {(() => {
+                const journalLogs = logs.filter(l => l.eventType === 'journal');
+                if (journalLogs.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-xs text-monitor-dim">
+                      <BookOpen size={28} className="mx-auto mb-3 text-indigo-300" />
+                      <p className="font-bold text-slate-500">尚無照護日誌</p>
+                      <p className="text-[10px] mt-1 text-slate-400">點擊底部「日誌」按鈕開始撰寫</p>
+                    </div>
+                  );
+                }
+
+                return journalLogs.map((log) => {
+                  const logDate = new Date(log.timestamp);
+                  const dateStr = `${logDate.getFullYear()}/${String(logDate.getMonth() + 1).padStart(2, '0')}/${String(logDate.getDate()).padStart(2, '0')}`;
+                  const timeStr = `${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
+                  const isExpanded = expandedJournalId === log.id;
+
+                  return (
+                    <div 
+                      key={log.id} 
+                      className={`bg-white border rounded-xl shadow-sm transition-all cursor-pointer select-none ${
+                        isExpanded ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-slate-200 hover:border-indigo-200'
+                      }`}
+                      onClick={() => setExpandedJournalId(prev => prev === log.id ? null : log.id)}
+                    >
+                      {/* 卡片標頭 */}
+                      <div className="flex items-start justify-between p-3 gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase whitespace-nowrap">
+                              照護日誌
+                            </span>
+                            <span className="font-mono text-[9px] text-slate-400 font-semibold">
+                              {dateStr} {timeStr}
+                            </span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-700 leading-normal">
+                            {log.journalTitle || log.journalContent.substring(0, 40) + (log.journalContent.length > 40 ? '...' : '')}
+                          </div>
+                          {!isExpanded && !log.journalTitle && log.journalContent.length <= 40 ? null : (
+                            !isExpanded && (
+                              <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                                {log.journalTitle 
+                                  ? log.journalContent.substring(0, 50) + (log.journalContent.length > 50 ? '...' : '')
+                                  : ''
+                                }
+                              </p>
+                            )
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0 pt-0.5">
+                          <span className="text-[8px] text-indigo-400 font-bold">
+                            {isExpanded ? '▲ 收合' : '▼ 展開'}
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteLog(log.id); }}
+                            className="text-monitor-dim hover:text-monitor-red p-1 rounded transition"
+                            title="刪除此筆日誌"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 展開的全文 */}
+                      {isExpanded && (
+                        <div className="px-3 pb-3 border-t border-indigo-100">
+                          <div className="mt-2.5 text-xs text-slate-600 whitespace-pre-wrap break-words leading-relaxed bg-indigo-50/50 rounded-lg p-3 border border-indigo-100">
+                            {log.journalContent}
+                          </div>
+                          <div className="flex justify-between items-center mt-2 text-[9px] text-slate-400">
+                            <span className="font-mono">{log.journalContent.length} 字</span>
+                            <span className="font-mono">{dateStr} {timeStr}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+
+            <div className="flex justify-end pt-1 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowJournalListModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+              >
+                關閉
+              </button>
             </div>
           </div>
         </div>
