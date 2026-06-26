@@ -4354,13 +4354,13 @@ function App() {
       </main>
 
       {/* 底部固定操作欄 (Sticky Bottom Action Bar) */}
-      <footer className="bg-white border-t border-monitor-border py-2 px-2.5 flex gap-1.5 z-30 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      <footer className="bg-white border-t border-monitor-border pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-4 flex gap-1.5 z-30 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <button
           type="button"
           onClick={openVitalsModalWithLatest}
           className="flex-1 py-2 bg-monitor-green text-white font-extrabold rounded-lg hover:bg-monitor-green/90 active:scale-95 transition shadow-sm flex items-center justify-center gap-0.5 text-[11px] min-[360px]:text-xs tracking-wider whitespace-nowrap"
         >
-          <span className="flex items-center gap-0.5">🩺 生理</span>
+          <span className="flex items-center gap-0.5"><Plus size={13} /> 生理</span>
         </button>
         <button
           type="button"
