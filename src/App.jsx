@@ -2997,7 +2997,7 @@ function App() {
         {/* 尿量水分統計 */}
         <div className="border border-monitor-border rounded-xl p-4 space-y-3 bg-white">
           <h5 className="text-xs font-bold text-slate-700 border-b border-monitor-border pb-1.5 flex items-center gap-1.5">
-            <Droplet size={14} className="text-monitor-cyan" /> 💧 尿量與水分排泄統計
+            <Droplet size={14} className="text-monitor-cyan" /> 尿量與水分排泄統計
           </h5>
           <div className="grid grid-cols-3 gap-2 text-center py-1">
             <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
@@ -3178,7 +3178,7 @@ function App() {
         {/* 用藥紀錄 */}
         <div className="border border-monitor-border rounded-xl p-4 space-y-3 bg-white">
           <h5 className="text-xs font-bold text-slate-700 border-b border-monitor-border pb-1.5 flex items-center gap-1.5">
-            <Pill size={14} className="text-monitor-purple" /> 💊 用藥與給藥處置統計
+            <Pill size={14} className="text-monitor-purple" /> 用藥與給藥處置統計
           </h5>
           {Object.keys(medCounts).length === 0 ? (
             <p className="text-[10px] text-monitor-dim py-4 text-center">此區間內無特殊給藥紀錄</p>
@@ -3201,7 +3201,7 @@ function App() {
         {/* 照護需求 */}
         <div className="border border-monitor-border rounded-xl p-4 space-y-3 bg-white">
           <h5 className="text-xs font-bold text-slate-700 border-b border-monitor-border pb-1.5 flex items-center gap-1.5">
-            <HandHeart size={14} className="text-monitor-orange" /> 🤲 照護需求與介入次數
+            <HandHeart size={14} className="text-monitor-orange" /> 照護需求與介入次數
           </h5>
           {totalCares === 0 ? (
             <p className="text-[10px] text-monitor-dim py-4 text-center">此區間內無特殊照護需求</p>
