@@ -3963,13 +3963,16 @@ function App() {
                 </span>
                 <span className="text-[9px] font-mono">mmHg</span>
               </div>
-              <div className={`text-3xl font-telemetry font-bold leading-none mt-2.5 ${
+              <div className={`text-3xl font-telemetry font-bold leading-none mt-2.5 flex items-baseline ${
                 isBpAlert(latest.sbp, latest.dbp) ? 'text-monitor-red' : 'text-monitor-text'
               }`}>
-                {latest.bp}
+                <span>{latest.bp}</span>
+                <span className="text-sm font-sans text-monitor-dim ml-2 font-bold whitespace-nowrap">
+                  (MAP: <strong className="font-telemetry text-base">{latest.map}</strong>)
+                </span>
               </div>
               <div className="mt-2 text-[9px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1 flex-wrap gap-1">
-                <span className="whitespace-nowrap">平均 MAP: <strong className="text-monitor-text font-mono">{latest.map}</strong></span>
+                <span className="whitespace-nowrap">正常範圍: <strong className="text-monitor-text font-sans font-bold">90-140 / 55-90 mmHg</strong> (MAP: 70-105)</span>
                 {isBpAlert(latest.sbp, latest.dbp) && latest.sbp !== '--' && <span className="text-monitor-red font-bold animate-pulse whitespace-nowrap">異常</span>}
               </div>
             </button>
