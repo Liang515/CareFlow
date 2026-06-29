@@ -23,7 +23,8 @@ import {
   Moon,
   FileText,
   AlertTriangle,
-  BookOpen
+  BookOpen,
+  Thermometer
 } from 'lucide-react';
 
 // 判斷是否為觸控設備 (Coarse Pointer)
@@ -329,6 +330,7 @@ const INITIAL_LOGS = [
     sbp: 118,
     dbp: 75,
     map: 89,
+    temp: 36.5,
     notes: '基準生理數據穩定。'
   },
   {
@@ -349,6 +351,7 @@ const INITIAL_LOGS = [
     sbp: 110,
     dbp: 70,
     map: 83,
+    temp: 36.6,
     notes: '夜間安頓休息。'
   },
   {
@@ -370,6 +373,7 @@ const INITIAL_LOGS = [
     sbp: 135,
     dbp: 88,
     map: 104,
+    temp: 37.8, // 體溫偏高 (發燒)
     notes: '呼吸與心率明顯上升，受測者主訴深層骨痛。'
   },
   {
@@ -390,6 +394,7 @@ const INITIAL_LOGS = [
     sbp: 115,
     dbp: 72,
     map: 86,
+    temp: 36.8,
     notes: '疼痛控制中，安靜休息。'
   },
   {
@@ -439,6 +444,7 @@ const INITIAL_LOGS = [
     sbp: 112,
     dbp: 68,
     map: 83,
+    temp: 36.5,
     notes: '近期生理數據追蹤。'
   }
 ];
@@ -596,6 +602,7 @@ function App() {
   const [heartRate, setHeartRate] = useState(80);
   const [oxygen, setOxygen] = useState(98);
   const [respRate, setRespRate] = useState(16);
+  const [bodyTemp, setBodyTemp] = useState(36.5);
   const [urineVolume, setUrineVolume] = useState(200);
   const [urineColor, setUrineColor] = useState('clear_yellow');
   const [excretionType, setExcretionType] = useState('urine'); // 'urine' | 'stool'
@@ -781,7 +788,7 @@ function App() {
   // 取得最新生理數據
   const getLatestVitals = useCallback(() => {
     const vitalsLogs = logs.filter(l => l.type === 'vitals');
-    if (vitalsLogs.length === 0) return { hr: '--', spo2: '--', rr: '--', bp: '--/--', map: '--' };
+    if (vitalsLogs.length === 0) return { hr: '--', spo2: '--', rr: '--', bp: '--/--', map: '--', temp: '--' };
     
     const sorted = [...vitalsLogs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     const latest = sorted[0];
@@ -793,6 +800,7 @@ function App() {
       sbp: latest.sbp,
       dbp: latest.dbp,
       map: latest.map,
+      temp: latest.temp !== undefined && latest.temp !== null ? latest.temp : '--',
       timestamp: latest.timestamp
     };
   }, [logs]);
@@ -805,6 +813,7 @@ function App() {
     const latestHr = latest.hr !== '--' ? latest.hr : 80;
     const latestSpo2 = latest.spo2 !== '--' ? latest.spo2 : 98;
     const latestRr = latest.rr !== '--' ? latest.rr : 16;
+    const latestTemp = latest.temp !== '--' ? latest.temp : 36.5;
     
     let latestSbp = 120;
     let latestDbp = 80;
@@ -820,6 +829,7 @@ function App() {
     setRespRate(latestRr);
     setSystolic(latestSbp);
     setDiastolic(latestDbp);
+    setBodyTemp(latestTemp);
     setCustomMap(null); // 重置為自動計算 (依據載入的最新收縮壓/舒張壓)
     setShowVitalsModal(true);
   };
@@ -829,6 +839,7 @@ function App() {
   const isSpo2Alert = (spo2) => spo2 !== '--' && Number(spo2) < 95;
   const isRrAlert = (rr) => rr !== '--' && Number(rr) > 24;
   const isBpAlert = (sbp, dbp) => sbp !== '--' && dbp !== '--' && (Number(sbp) > 140 || Number(dbp) > 90 || Number(sbp) < 90 || Number(dbp) < 55);
+  const isTempAlert = (temp) => temp !== '--' && (Number(temp) >= 37.5 || Number(temp) < 35.5);
 
   // 繪製趨勢圖的 SVG 元件 (支援時間間距比例繪圖與時間標籤)
   const renderSparkline = (key, strokeColor, label, unit, isLarge = false) => {
@@ -889,7 +900,7 @@ function App() {
           <span className="font-bold text-monitor-text">{label}</span>
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] text-monitor-dim">
-              最新: <strong className="text-monitor-text">{vals[vals.length - 1]}</strong> {unit} (區間: {Math.round(min)}-{Math.round(max)})
+              最新: <strong className="text-monitor-text">{key === 'temp' ? Number(vals[vals.length - 1]).toFixed(1) : vals[vals.length - 1]}</strong> {unit} (區間: {key === 'temp' ? min.toFixed(1) : Math.round(min)}-{key === 'temp' ? max.toFixed(1) : Math.round(max)})
             </span>
             {!isLarge && (
               <button
@@ -1056,7 +1067,7 @@ function App() {
                     fill={strokeColor}
                     className="font-mono bg-white"
                   >
-                    {p.val}
+                    {key === 'temp' ? Number(p.val).toFixed(1) : p.val}
                   </text>
                 )}
                 
@@ -1084,7 +1095,7 @@ function App() {
                           x: p.x,
                           y: p.y,
                           time: timeStr,
-                          value: `${label.split(' ')[0]}: ${p.val} ${unit}`
+                          value: `${label.split(' ')[0]}: ${key === 'temp' ? Number(p.val).toFixed(1) : p.val} ${unit}`
                         });
                       }}
                       onMouseLeave={() => {
@@ -1105,7 +1116,7 @@ function App() {
                             x: p.x,
                             y: p.y,
                             time: timeStr,
-                            value: `${label.split(' ')[0]}: ${p.val} ${unit}`
+                            value: `${label.split(' ')[0]}: ${key === 'temp' ? Number(p.val).toFixed(1) : p.val} ${unit}`
                           });
                         }
                       }}
@@ -2587,6 +2598,7 @@ function App() {
       sbp: sbpVal,
       dbp: dbpVal,
       map: mapVal,
+      temp: Number(bodyTemp) || 36.5,
       notes: noteText.trim() || undefined
     };
     setLogs(prev => [newLog, ...prev]);
@@ -2828,12 +2840,14 @@ function App() {
     let spo2Abnormal = 0;
     let rrAbnormal = 0;
     let bpAbnormal = 0;
+    let tempAbnormal = 0;
 
     vitals.forEach(v => {
       if (v.hr < 60 || v.hr > 100) hrAbnormal++;
       if (v.spo2 < 95) spo2Abnormal++;
       if (v.rr < 12 || v.rr > 24) rrAbnormal++;
       if (v.sbp < 90 || v.sbp > 140 || v.dbp < 60 || v.dbp > 90) bpAbnormal++;
+      if (v.temp !== undefined && v.temp !== null && (v.temp >= 37.5 || v.temp < 35.5)) tempAbnormal++;
     });
 
     return {
@@ -2841,13 +2855,15 @@ function App() {
       hr: computeStat('hr'),
       spo2: computeStat('spo2'),
       rr: computeStat('rr'),
+      temp: computeStat('temp'),
       sbp: sbpStats,
       dbp: dbpStats,
       abnormal: {
         hr: hrAbnormal,
         spo2: spo2Abnormal,
         rr: rrAbnormal,
-        bp: bpAbnormal
+        bp: bpAbnormal,
+        temp: tempAbnormal
       },
       urines,
       stools,
@@ -2922,6 +2938,7 @@ function App() {
               {renderReportVitalsRow('心率 (Heart Rate)', data.hr, 'bpm')}
               {renderReportVitalsRow('血氧 (SpO₂)', data.spo2, '%')}
               {renderReportVitalsRow('呼吸速率 (Respiratory Rate)', data.rr, 'rpm')}
+              {renderReportVitalsRow('體溫 (Body Temperature)', data.temp, '°C')}
               {data.sbp.count > 0 ? (
                 <tr className="border-b border-monitor-border/60 text-xs">
                   <td className="py-2.5 px-3 font-bold text-slate-800">血壓 (Blood Pressure)</td>
@@ -3260,6 +3277,21 @@ function App() {
       });
     }
 
+    if (data.temp && data.temp.max !== null && (data.temp.max >= 37.5 || data.temp.min < 35.5)) {
+      const isFever = data.temp.max >= 37.5;
+      const isHypo = data.temp.min < 35.5;
+      const text = isFever && isHypo
+        ? `體溫異常波動，最高達 ${data.temp.max} °C，最低達 ${data.temp.min} °C，請注意體溫調控與生命徵象。`
+        : isFever 
+          ? `偵測到發燒/發熱 (體溫最高達 ${data.temp.max} °C，共 ${data.abnormal.temp} 次異常)，建議多休息、補充水分並密切觀察是否合併寒顫、呼吸急促或意識改變。`
+          : `體溫過低 (體溫最低達 ${data.temp.min} °C，共 ${data.abnormal.temp} 次異常)，請加強保暖並定時監測。`;
+      alerts.push({
+        type: isFever ? 'danger' : 'warning',
+        title: isFever ? '發燒發熱警示' : '體溫偏低提示',
+        text
+      });
+    }
+
     let brightRedUrineCount = data.urines.filter(u => u.color === 'bright_red').length;
     let teaUrineCount = data.urines.filter(u => u.color === 'tea').length;
     if (brightRedUrineCount > 0) {
@@ -3372,6 +3404,7 @@ function App() {
     const spo2Str = current ? `${current.spo2}%` : '暫無';
     const rrStr = current ? `${current.rr} rpm` : '暫無';
     const mapStr = current ? `${current.map} mmHg` : '暫無';
+    const tempStr = current && current.temp !== undefined && current.temp !== null ? `${Number(current.temp).toFixed(1)} °C` : '暫無';
 
     // 格式化時間線臨床事件與警報
     const timeline = chronoLogs.map(l => {
@@ -3381,6 +3414,7 @@ function App() {
         if (l.rr > 24) alerts.push(`呼吸急促 RR:${l.rr}`);
         if (l.hr > 100) alerts.push(`心搏過速 HR:${l.hr}`);
         if (l.spo2 < 95) alerts.push(`低血氧 SpO2:${l.spo2}%`);
+        if (l.temp !== undefined && l.temp !== null && (l.temp >= 37.5 || l.temp < 35.5)) alerts.push(`體溫異常 Temp:${Number(l.temp).toFixed(1)}°C`);
         
         return alerts.length > 0 
           ? `[${timeStr}] ⚠️ 警報: ${alerts.join(', ')} (血壓: ${l.sbp}/${l.dbp})${l.notes ? ` - "${l.notes}"` : ''}`
@@ -3426,7 +3460,7 @@ function App() {
     const dateStr = now.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
     let report = `🏥 照護交班報告 (${dateStr} - ${reportDuration}小時內):\n\n`;
     report += `📈 最新生理 telemetry 指標:\n`;
-    report += `- 心率 (HR): ${hrStr}\n- 血氧 (SpO2): ${spo2Str}\n- 呼吸 (RR): ${rrStr}\n- 血壓 (BP): ${bpStr} (平均壓 MAP: ${mapStr})\n\n`;
+    report += `- 心率 (HR): ${hrStr}\n- 血氧 (SpO2): ${spo2Str}\n- 呼吸 (RR): ${rrStr}\n- 體溫 (Temp): ${tempStr}\n- 血壓 (BP): ${bpStr} (平均壓 MAP: ${mapStr})\n\n`;
     
     // 尿量排泄統計
     const urineLogs = chronoLogs.filter(l => l.eventType === 'urine' && l.excretionType !== 'stool');
@@ -3908,6 +3942,37 @@ function App() {
                 {isBpAlert(latest.sbp, latest.dbp) && latest.sbp !== '--' && <span className="text-monitor-red font-bold animate-pulse whitespace-nowrap">異常</span>}
               </div>
             </button>
+
+            {/* 體溫卡片 */}
+            <button 
+              id="temp-card"
+              onClick={openVitalsModalWithLatest}
+              className={`text-left focus:outline-none border transition-all rounded-xl p-4 hover:scale-[1.01] col-span-2 ${
+                isTempAlert(latest.temp)
+                  ? 'bg-rose-50/75 border-rose-200 hover:border-rose-300 shadow-sm'
+                  : 'bg-white border-slate-200/80 hover:border-slate-300/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+              }`}
+            >
+              <div className="flex justify-between items-center text-monitor-dim">
+                <span className="text-xs font-bold uppercase flex items-center gap-1">
+                  <Thermometer size={13} className="text-monitor-orange" /> 體溫 (TEMP)
+                </span>
+                <span className="text-[9px] font-mono">°C</span>
+              </div>
+              <div className={`text-4xl font-telemetry font-bold leading-none mt-2 ${
+                isTempAlert(latest.temp) ? 'text-monitor-red' : 'text-monitor-orange'
+              }`}>
+                {latest.temp !== '--' ? Number(latest.temp).toFixed(1) : '--'}
+              </div>
+              <div className="mt-2 text-[9px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1 flex-wrap gap-1">
+                <span className="whitespace-nowrap">正常範圍: 35.5 - 37.4 °C</span>
+                {isTempAlert(latest.temp) && latest.temp !== '--' && (
+                  <span className="text-monitor-red font-bold animate-pulse whitespace-nowrap">
+                    {latest.temp >= 37.5 ? '發燒' : '低體溫'}
+                  </span>
+                )}
+              </div>
+            </button>
           </div>
           </div>
         )}
@@ -3918,6 +3983,7 @@ function App() {
             {renderSparkline('hr', '#10b981', '心率趨勢 (Heart Rate)', 'bpm')}
             {renderSparkline('spo2', '#06b6d4', '血氧趨勢 (SpO₂)', '%')}
             {renderSparkline('rr', '#f59e0b', '呼吸趨勢 (Respiratory Rate)', 'rpm')}
+            {renderSparkline('temp', '#f97316', '體溫趨勢 (Body Temperature)', '°C')}
             {renderBpSparkline()}
             {renderUrineChart()}
             {renderStoolSummary()}
@@ -4225,6 +4291,13 @@ function App() {
                                               <strong className={isRrAlert(log.rr) ? 'text-monitor-red' : 'text-monitor-yellow'}>{log.rr}</strong>
                                               <span className="text-[8px] text-monitor-dim ml-0.5">rpm</span>
                                             </div>
+                                            {log.temp !== undefined && log.temp !== null && (
+                                              <div className="whitespace-nowrap">
+                                                <span className="text-monitor-dim">體溫:</span>{' '}
+                                                <strong className={isTempAlert(log.temp) ? 'text-monitor-red' : 'text-monitor-orange'}>{Number(log.temp).toFixed(1)}</strong>
+                                                <span className="text-[8px] text-monitor-dim ml-0.5">°C</span>
+                                              </div>
+                                            )}
                                             <div className="whitespace-nowrap">
                                               <span className="text-monitor-dim">血壓:</span>{' '}
                                               <strong className={isBpAlert(log.sbp, log.dbp) ? 'text-monitor-red' : 'text-monitor-text'}>{log.sbp}/{log.dbp}</strong>
@@ -4539,6 +4612,47 @@ function App() {
                     className="flex-1 py-3 bg-monitor-bg border border-monitor-border rounded-lg text-monitor-text font-bold active:bg-slate-100"
                   >
                     +2
+                  </button>
+                </div>
+              </div>
+
+              {/* 體溫輸入 */}
+              <div className="space-y-1">
+                <div className="flex justify-between font-semibold">
+                  <span className="text-monitor-orange">體溫 (Body Temperature)</span>
+                  <span className="text-monitor-dim">{Number(bodyTemp).toFixed(1)} °C</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setBodyTemp(prev => parseFloat((Math.max(34, (Number(prev) || 36.5) - 0.5)).toFixed(1)))}
+                    className="flex-1 py-3 bg-monitor-bg border border-monitor-border rounded-lg text-monitor-text font-bold active:bg-slate-100"
+                  >
+                    -0.5
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setBodyTemp(prev => parseFloat((Math.max(34, (Number(prev) || 36.5) - 0.1)).toFixed(1)))}
+                    className="flex-1 py-3 bg-monitor-bg border border-monitor-border rounded-lg text-monitor-text font-bold active:bg-slate-100"
+                  >
+                    -0.1
+                  </button>
+                  <div className="w-16 text-center text-xl font-telemetry font-bold text-monitor-orange py-1.5 bg-monitor-bg border border-monitor-border rounded-lg">
+                    {Number(bodyTemp).toFixed(1)}
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setBodyTemp(prev => parseFloat((Math.min(43, (Number(prev) || 36.5) + 0.1)).toFixed(1)))}
+                    className="flex-1 py-3 bg-monitor-bg border border-monitor-border rounded-lg text-monitor-text font-bold active:bg-slate-100"
+                  >
+                    +0.1
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setBodyTemp(prev => parseFloat((Math.min(43, (Number(prev) || 36.5) + 0.5)).toFixed(1)))}
+                    className="flex-1 py-3 bg-monitor-bg border border-monitor-border rounded-lg text-monitor-text font-bold active:bg-slate-100"
+                  >
+                    +0.5
                   </button>
                 </div>
               </div>
