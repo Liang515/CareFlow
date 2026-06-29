@@ -3916,38 +3916,11 @@ function App() {
               </div>
             </button>
 
-            {/* 血壓卡片 */}
-            <button 
-              id="bp-card"
-              onClick={openVitalsModalWithLatest}
-              className={`text-left focus:outline-none border transition-all rounded-xl p-4 hover:scale-[1.01] ${
-                isBpAlert(latest.sbp, latest.dbp)
-                  ? 'bg-rose-50/75 border-rose-200 hover:border-rose-300 shadow-sm'
-                  : 'bg-white border-slate-200/80 hover:border-slate-300/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
-              }`}
-            >
-              <div className="flex justify-between items-center text-monitor-dim">
-                <span className="text-xs font-bold uppercase flex items-center gap-1">
-                  <Activity size={13} className="text-monitor-red" /> 血壓 (BP)
-                </span>
-                <span className="text-[9px] font-mono">mmHg</span>
-              </div>
-              <div className={`text-3xl font-telemetry font-bold leading-none mt-2.5 ${
-                isBpAlert(latest.sbp, latest.dbp) ? 'text-monitor-red' : 'text-monitor-text'
-              }`}>
-                {latest.bp}
-              </div>
-              <div className="mt-2 text-[9px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1 flex-wrap gap-1">
-                <span className="whitespace-nowrap">平均 MAP: <strong className="text-monitor-text font-mono">{latest.map}</strong></span>
-                {isBpAlert(latest.sbp, latest.dbp) && latest.sbp !== '--' && <span className="text-monitor-red font-bold animate-pulse whitespace-nowrap">異常</span>}
-              </div>
-            </button>
-
             {/* 體溫卡片 */}
             <button 
               id="temp-card"
               onClick={openVitalsModalWithLatest}
-              className={`text-left focus:outline-none border transition-all rounded-xl p-4 hover:scale-[1.01] col-span-2 ${
+              className={`text-left focus:outline-none border transition-all rounded-xl p-4 hover:scale-[1.01] ${
                 isTempAlert(latest.temp)
                   ? 'bg-rose-50/75 border-rose-200 hover:border-rose-300 shadow-sm'
                   : 'bg-white border-slate-200/80 hover:border-slate-300/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
@@ -3971,6 +3944,33 @@ function App() {
                     {latest.temp >= 37.5 ? '發燒' : '低體溫'}
                   </span>
                 )}
+              </div>
+            </button>
+
+            {/* 血壓卡片 */}
+            <button 
+              id="bp-card"
+              onClick={openVitalsModalWithLatest}
+              className={`text-left focus:outline-none border transition-all rounded-xl p-4 hover:scale-[1.01] col-span-2 ${
+                isBpAlert(latest.sbp, latest.dbp)
+                  ? 'bg-rose-50/75 border-rose-200 hover:border-rose-300 shadow-sm'
+                  : 'bg-white border-slate-200/80 hover:border-slate-300/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+              }`}
+            >
+              <div className="flex justify-between items-center text-monitor-dim">
+                <span className="text-xs font-bold uppercase flex items-center gap-1">
+                  <Activity size={13} className="text-monitor-red" /> 血壓 (BP)
+                </span>
+                <span className="text-[9px] font-mono">mmHg</span>
+              </div>
+              <div className={`text-3xl font-telemetry font-bold leading-none mt-2.5 ${
+                isBpAlert(latest.sbp, latest.dbp) ? 'text-monitor-red' : 'text-monitor-text'
+              }`}>
+                {latest.bp}
+              </div>
+              <div className="mt-2 text-[9px] text-monitor-dim flex items-center justify-between border-t border-slate-200/50 pt-1 flex-wrap gap-1">
+                <span className="whitespace-nowrap">平均 MAP: <strong className="text-monitor-text font-mono">{latest.map}</strong></span>
+                {isBpAlert(latest.sbp, latest.dbp) && latest.sbp !== '--' && <span className="text-monitor-red font-bold animate-pulse whitespace-nowrap">異常</span>}
               </div>
             </button>
           </div>
